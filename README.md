@@ -1,43 +1,40 @@
 # Social App Platform
 
-This is a full-stack social application project currently in its foundational development stage. It consists of a high-performance **FastAPI** backend that interacts with a **PostgreSQL** database through **SQLAlchemy**, and a structural React frontend.
+FastAPI backend with PostgreSQL and SQLAlchemy. The API is the source of truth; use the interactive OpenAPI UI at `/docs` while a dedicated blog-style frontend is planned.
 
-## 🚀 Current Architecture
+## Architecture
 
-- **Backend Framework:** FastAPI
+- **Backend:** FastAPI
 - **Database:** PostgreSQL
 - **ORM:** SQLAlchemy
-- **Configuration:** Pydantic Settings (Environment Variables)
-- **Frontend:** React (Vite/Create React App)
+- **Configuration:** Pydantic Settings (`.env`)
+- **Auth:** JWT (python-jose), password hashing (passlib/bcrypt)
 
-## ✨ Implemented Features
+## Features
 
-- **Database Integration:** Fully connected to a local PostgreSQL instance.
-- **Environment Management:** Secure credential management using `.env`.
-- **User CRUD:** Ability to create and retrieve user data with password hashing (bcrypt).
-- **Post CRUD:** RESTful API endpoints to Create, Read, Update, and Delete social posts.
-- **Authentication:** Token-based JWT (JSON Web Token) authentication securing endpoints.
-- **CORS Configured:** Backend is ready to securely accept requests from the React frontend.
-- **Modular Routing:** Clean codebase utilizing FastAPI's `APIRouter` for posts, users, and auth.
+- Users: register and fetch users; passwords hashed.
+- Posts: CRUD with ownership (`owner_id`). Create, update, and delete require authentication; only the owner may update or delete.
+- Votes: authenticated users can add or remove a vote on a post (`/vote`). List and single-post responses include vote counts.
+- Post listing: authenticated list endpoint supports `limit`, `skip`, and optional `search` (title substring).
+- CORS configured for browser clients.
+- Routers: `posts`, `users`, `auth`, `vote`.
 
-## 🛠️ Local Setup Instructions
+## Local setup
 
-### 1. Requirements
+### Requirements
 
 - Python 3.10+
 - PostgreSQL
-- Node.js (for frontend)
 
-### 2. Backend Setup
-
-Navigate to the root directory and activate your virtual environment:
+### Backend
 
 ```bash
-# On Linux/macOS
-source venv/bin/activate
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-Create a `.env` file in the root directory and add your local database credentials:
+Create a `.env` in the project root:
 
 ```env
 DATABASE_HOSTNAME=localhost
@@ -50,17 +47,19 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-### 3. Run the Server
-
-Start the FastAPI application using Uvicorn:
+Run the app:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-You can access the automated interactive API documentation by visiting `http://localhost:8000/docs` in your browser.
+Open `http://127.0.0.1:8000/docs` for Swagger UI.
 
-## 🔮 Roadmap
+### Database schema
 
-- [ ] Add Database Foreign Key relationships (Users own Posts).
-- [ ] Build out the UI in the `react-frontend` folder.
+The app uses `create_all` on startup. If you already have an older database without `owner_id` or `votes`, add the new tables/columns (or recreate the DB) before running.
+
+## Roadmap
+
+- [ ] Dedicated blog-style frontend (replace or drop any legacy UI experiments in-repo).
+- [ ] Alembic migrations for production schema changes.
