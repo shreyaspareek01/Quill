@@ -66,6 +66,6 @@ async def update_post(id:int, post:PostCreate,db:Session=Depends(get_db),user:in
     if db_post.owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail=f"Not authorized to perform the requested action")
         
-    db_post.update(post.model_dump(),synchronize_session=False)
+    post_query.update(post.model_dump(),synchronize_session=False)
     db.commit()
-    return db_post
+    return post_query.first()
