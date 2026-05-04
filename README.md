@@ -1,32 +1,34 @@
-# Social App Platform
+# Social App Platform API
 
-FastAPI backend with PostgreSQL and SQLAlchemy. The API is the source of truth; use the interactive OpenAPI UI at `/docs` while a dedicated blog-style frontend is planned.
+FastAPI backend for a social/blog platform with PostgreSQL, SQLAlchemy, JWT authentication, and Alembic migrations.
 
-## Architecture
+## Tech Stack
 
-- **Backend:** FastAPI
-- **Database:** PostgreSQL
-- **ORM:** SQLAlchemy
-- **Configuration:** Pydantic Settings (`.env`)
-- **Auth:** JWT (python-jose), password hashing (passlib/bcrypt)
+- FastAPI
+- PostgreSQL
+- SQLAlchemy 2.x
+- Alembic (database migrations)
+- Pydantic Settings (`.env` based configuration)
+- JWT auth (`python-jose`) + password hashing (`passlib`/`bcrypt`)
 
-## Features
+## Current Features
 
-- Users: register and fetch users; passwords hashed.
-- Posts: CRUD with ownership (`owner_id`). Create, update, and delete require authentication; only the owner may update or delete.
-- Votes: authenticated users can add or remove a vote on a post (`/vote`). List and single-post responses include vote counts.
-- Post listing: authenticated list endpoint supports `limit`, `skip`, and optional `search` (title substring).
-- CORS configured for browser clients.
-- Routers: `posts`, `users`, `auth`, `vote`.
+- User registration and user fetch endpoints
+- Login endpoint that returns a bearer JWT token
+- Post CRUD with owner authorization (`owner_id`)
+- Voting system (`/vote`) with add/remove behavior
+- Vote count aggregation in list and single-post responses
+- Pagination and search on post listing (`limit`, `skip`, `search`)
+- CORS middleware enabled
 
-## Local setup
+## Local Setup
 
-### Requirements
+### Prerequisites
 
 - Python 3.10+
-- PostgreSQL
+- PostgreSQL running locally or remotely
 
-### Backend
+### Install dependencies
 
 ```bash
 python -m venv venv
@@ -34,7 +36,9 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Create a `.env` in the project root:
+### Environment variables
+
+Create a `.env` file in the project root:
 
 ```env
 DATABASE_HOSTNAME=localhost
@@ -47,19 +51,46 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-Run the app:
+### Apply database migrations
+
+This project now uses Alembic as the source of truth for schema changes.
+
+```bash
+alembic upgrade head
+```
+
+### Run the API
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` for Swagger UI.
+Swagger UI: `http://127.0.0.1:8000/docs`
 
-### Database schema
+## API Overview
 
-The app uses `create_all` on startup. If you already have an older database without `owner_id` or `votes`, add the new tables/columns (or recreate the DB) before running.
+- `POST /users` - Create a new user
+- `GET /users` - List all users
+- `GET /users/{id}` - Fetch user by id
+- `POST /login` - Login (OAuth2 form) and get JWT token
+- `GET /posts` - List posts (requires auth; supports `limit`, `skip`, `search`)
+- `GET /posts/{id}` - Get one post with vote count (requires auth)
+- `POST /posts` - Create post (requires auth)
+- `PUT /posts/{id}` - Update post (owner only)
+- `DELETE /posts/{id}` - Delete post (owner only)
+- `POST /vote` - Add or remove vote (`dir: 1` add, `dir: 0` remove)
 
-## Roadmap
+## Authentication Notes
 
-- [ ] Dedicated blog-style frontend (replace or drop any legacy UI experiments in-repo).
-- [ ] Alembic migrations for production schema changes.
+- Use `/login` with `username` (email) and `password` as form fields.
+- Include `Authorization: Bearer <token>` for protected routes.
+
+## Migration Notes
+
+- Migration files are located in `alembic/versions`.
+- To create a new migration after model changes:
+
+```bash
+alembic revision --autogenerate -m "describe change"
+alembic upgrade head
+```
