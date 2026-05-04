@@ -4,8 +4,8 @@ from . import models
 from .database import engine 
 from .routers import posts,users,auth,vote
 
-models.Base.metadata.create_all(bind=engine)
-print("Database connected!")
+# models.Base.metadata.create_all(bind=engine)
+# print("Database connected!")
 app = FastAPI()
 
 app.add_middleware(

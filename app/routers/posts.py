@@ -59,13 +59,13 @@ async def update_post(id:int, post:PostCreate,db:Session=Depends(get_db),user:in
     # updated_post=cursor.fetchone()
 
     post_query = db.query(models.Post).filter(models.Post.id==id)
-    post = post_query.first()
-    if post == None:
+    db_post = post_query.first()
+    if db_post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Post with id: {id} not found!")
     # conn.commit()
-    if post.owner_id != user.id:
+    if db_post.owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail=f"Not authorized to perform the requested action")
         
-    post_query.update(post.model_dump(),synchronize_session=False)
+    db_post.update(post.model_dump(),synchronize_session=False)
     db.commit()
-    return post_query.first()
+    return db_post
