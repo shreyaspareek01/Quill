@@ -44,11 +44,7 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
    ```
 3. **Environment Variables**: Create a `.env` file in `server/`:
    ```env
-   DATABASE_HOSTNAME=localhost
-   DATABASE_PORT=5432
-   DATABASE_PASSWORD=your_password
-   DATABASE_NAME=fastapi-project
-   DATABASE_USERNAME=postgres
+   DATABASE_URL=postgresql://postgres:password@localhost:5432/fastapi-project
    JWT_SECRET_KEY=your_secret_key
    ALGORITHM=HS256
    ACCESS_TOKEN_EXPIRE_MINUTES=30

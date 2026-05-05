@@ -4,12 +4,9 @@ from .config import settings
 # import time
 # import psycopg
 
-if settings.database_url:
-    SQLALCHEMY_DATABASE_URL = settings.database_url
-    if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
-        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
-else:
-    SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
+SQLALCHEMY_DATABASE_URL = settings.database_url
+if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, 

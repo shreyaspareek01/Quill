@@ -11,12 +11,9 @@ from app.config import settings
 # access to the values within the .ini file in use.
 config = context.config
 
-if settings.database_url:
-    sqlalchemy_url = settings.database_url
-    if sqlalchemy_url.startswith("postgresql://"):
-        sqlalchemy_url = sqlalchemy_url.replace("postgresql://", "postgresql+psycopg://", 1)
-else:
-    sqlalchemy_url = f"postgresql+psycopg://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
+sqlalchemy_url = settings.database_url
+if sqlalchemy_url.startswith("postgresql://"):
+    sqlalchemy_url = sqlalchemy_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
 config.set_main_option("sqlalchemy.url", sqlalchemy_url)
 
