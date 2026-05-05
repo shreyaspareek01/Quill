@@ -3,14 +3,14 @@ from ..schemas import PostCreate, PostResponse, PostResponseWithVotes
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
-from fastapi import status,Response,APIRouter,Depends
+from fastapi import status,Response,APIRouter,Depends,Query
 from fastapi.exceptions import HTTPException
 from typing import Optional
- 
+
 router = APIRouter(prefix="/posts",tags=["Posts"])
 
 @router.get("/",response_model=list[PostResponseWithVotes])
-async def get_posts(db: Session = Depends(get_db),user: int = Depends(oauth2.get_current_user),limit:int=10,skip:int=0,search:Optional[str]=""):
+async def get_posts(db: Session = Depends(get_db),user: int = Depends(oauth2.get_current_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0),search:Optional[str]=""):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
     result = db.query(models.Post,func.count(models.Vote.post_id).label("votes")).join(models.Vote,models.Vote.post_id==models.Post.id,isouter=True).group_by(models.Post.id).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()
