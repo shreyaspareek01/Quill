@@ -1,6 +1,6 @@
 # Quill ✒️
 
-A sophisticated, editorial-style full-stack social platform built with FastAPI and React. This project provides a robust social/blogging experience with a focus on clean design and secure operations.
+A sophisticated, editorial-style full-stack social platform built with FastAPI and React. This project provides a robust social/blogging experience with a focus on clean design, secure operations, and a premium user experience.
 
 ## 📁 Project Structure
 
@@ -18,20 +18,11 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
 ### Tech Stack
 
 - **FastAPI**: Modern, high-performance web framework.
-- **PostgreSQL**: Robust relational database.
+- **PostgreSQL (Neon)**: Cloud-hosted relational database.
 - **SQLAlchemy 2.x**: SQL Toolkit and Object Relational Mapper.
 - **Alembic**: Database migrations management.
 - **Pydantic Settings**: Environment-based configuration.
 - **JWT Auth**: Secure token-based authentication using `python-jose`.
-
-### Current Features
-
-- **User Management**: Registration and user profile retrieval.
-- **Authentication**: Login endpoint returning bearer JWT tokens.
-- **Post CRUD**: Complete Create, Read, Update, and Delete operations with owner authorization.
-- **Voting System**: Interactive `/vote` system with add/remove behavior and count aggregation.
-- **Post Listing**: Pagination and search (`limit`, `skip`, `search`).
-- **CORS**: Fully enabled for frontend communication.
 
 ### Local Setup (Server)
 
@@ -44,7 +35,7 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
    ```
 3. **Environment Variables**: Create a `.env` file in `server/`:
    ```env
-   DATABASE_URL=postgresql://postgres:password@localhost:5432/fastapi-project
+   DATABASE_URL=postgresql://user:password@localhost:5432/quill_db
    JWT_SECRET_KEY=your_secret_key
    ALGORITHM=HS256
    ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -57,18 +48,6 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
    ```bash
    uvicorn app.main:app --reload
    ```
-   Swagger UI: `http://127.0.0.1:8000/docs`
-
-### API Overview
-
-- `POST /users` - Create user
-- `POST /login` - Login & get JWT token
-- `GET /posts` - List posts (requires auth)
-- `GET /posts/{id}` - Get single post
-- `POST /posts` - Create post (requires auth)
-- `PUT /posts/{id}` - Update post (owner only)
-- `DELETE /posts/{id}` - Delete post (owner only)
-- `POST /vote` - Add/remove vote (`dir: 1` or `0`)
 
 ---
 
@@ -82,6 +61,7 @@ The frontend is designed with a premium editorial aesthetic, focusing on typogra
 - **Vanilla CSS**: Custom-built design system with a warm ivory palette.
 - **Axios**: Robust API client for backend communication.
 - **React Context**: State management for Auth and UI notifications.
+- **Lucide React**: Elegant icon library.
 
 ### Local Setup (Client)
 
@@ -90,17 +70,30 @@ The frontend is designed with a premium editorial aesthetic, focusing on typogra
    ```bash
    npm install
    ```
-3. **Run Dev Server**:
+3. **Environment Variables**: Create a `.env` file in `client/`:
+   ```env
+   VITE_API_URL=http://localhost:8000
+   ```
+4. **Run Dev Server**:
    ```bash
    npm run dev
    ```
 
-### UI Features
+---
 
+## 🚀 Deployment
+
+Quill is optimized for cloud deployment:
+
+- **Backend**: Deployed on **Render** (via Docker or Python Web Service).
+- **Frontend**: Deployed on **Vercel** with SPA routing support via `vercel.json`.
+- **Database**: Managed **Neon PostgreSQL** with connection pooling enabled.
+
+### UI Features
 - **Editorial Aesthetic**: Warm tones and serif fonts for a premium feel.
-- **Dynamic Feed**: Responsive list of posts with interactive voting.
+- **Dynamic Voting**: Real-time feedback and state synchronization.
 - **Protected Routes**: Secure navigation based on authentication state.
-- **Responsive Design**: Optimized for mobile and desktop screens.
+- **Responsive Design**: Optimized for all devices.
 
 ---
 
