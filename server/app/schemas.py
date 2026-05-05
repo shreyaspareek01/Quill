@@ -38,6 +38,7 @@ class PostResponse(PostBase):
 class PostResponseWithVotes(BaseModel):
     Post:PostResponse
     votes: int
+    has_voted: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):

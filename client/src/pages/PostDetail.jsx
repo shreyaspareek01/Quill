@@ -32,6 +32,7 @@ export default function PostDetailPage() {
         const res = await getPost(id);
         setData(res.data);
         setVotes(res.data.votes);
+        setVoted(res.data.has_voted);
       } catch {
         toast.error('Post not found.');
         navigate('/feed');

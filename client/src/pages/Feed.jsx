@@ -142,11 +142,12 @@ export default function FeedPage() {
               </div>
             ) : (
               <div className="feed__grid">
-                {posts.map(({ Post, votes }) => (
+                {posts.map(({ Post, votes, has_voted }) => (
                   <PostCard
                     key={Post.id}
                     post={Post}
                     votes={votes}
+                    hasVoted={has_voted}
                     onDelete={handleDelete}
                   />
                 ))}

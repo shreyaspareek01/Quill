@@ -13,13 +13,13 @@ function formatDate(dateStr) {
   });
 }
 
-export default function PostCard({ post, votes: initialVotes, onDelete }) {
+export default function PostCard({ post, votes: initialVotes, hasVoted: initialVoted, onDelete }) {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
   const [votes, setVotes] = useState(initialVotes || 0);
-  const [voted, setVoted] = useState(false);
+  const [voted, setVoted] = useState(initialVoted || false);
   const [voteLoading, setVoteLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
