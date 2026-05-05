@@ -6,9 +6,10 @@ class Settings(BaseSettings):
     database_password: str
     database_name: str
     database_username: str
-    jwt_secret_key:str
-    algorithm:str
-    access_token_expire_minutes:int
+    database_url: str | None = None
+    jwt_secret_key: str
+    algorithm: str
+    access_token_expire_minutes: int
 
     class Config:
         env_file = ".env"

@@ -16,6 +16,7 @@ This is a monorepo containing both the frontend and backend:
 FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentication, and Alembic migrations.
 
 ### Tech Stack
+
 - **FastAPI**: Modern, high-performance web framework.
 - **PostgreSQL**: Robust relational database.
 - **SQLAlchemy 2.x**: SQL Toolkit and Object Relational Mapper.
@@ -24,6 +25,7 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
 - **JWT Auth**: Secure token-based authentication using `python-jose`.
 
 ### Current Features
+
 - **User Management**: Registration and user profile retrieval.
 - **Authentication**: Login endpoint returning bearer JWT tokens.
 - **Post CRUD**: Complete Create, Read, Update, and Delete operations with owner authorization.
@@ -32,6 +34,7 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
 - **CORS**: Fully enabled for frontend communication.
 
 ### Local Setup (Server)
+
 1. `cd server`
 2. **Install Dependencies**:
    ```bash
@@ -61,6 +64,7 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
    Swagger UI: `http://127.0.0.1:8000/docs`
 
 ### API Overview
+
 - `POST /users` - Create user
 - `POST /login` - Login & get JWT token
 - `GET /posts` - List posts (requires auth)
@@ -77,12 +81,14 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
 The frontend is designed with a premium editorial aesthetic, focusing on typography and user experience.
 
 ### Tech Stack
+
 - **React + Vite**: Fast, modern frontend development.
 - **Vanilla CSS**: Custom-built design system with a warm ivory palette.
 - **Axios**: Robust API client for backend communication.
 - **React Context**: State management for Auth and UI notifications.
 
 ### Local Setup (Client)
+
 1. `cd client`
 2. **Install Dependencies**:
    ```bash
@@ -94,6 +100,7 @@ The frontend is designed with a premium editorial aesthetic, focusing on typogra
    ```
 
 ### UI Features
+
 - **Editorial Aesthetic**: Warm tones and serif fonts for a premium feel.
 - **Dynamic Feed**: Responsive list of posts with interactive voting.
 - **Protected Routes**: Secure navigation based on authentication state.
@@ -102,4 +109,5 @@ The frontend is designed with a premium editorial aesthetic, focusing on typogra
 ---
 
 ## 📜 License
+
 MIT

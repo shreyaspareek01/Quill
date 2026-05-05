@@ -4,9 +4,19 @@ from .config import settings
 # import time
 # import psycopg
 
-SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
+if settings.database_url:
+    SQLALCHEMY_DATABASE_URL = settings.database_url
+    if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+        SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+else:
+    SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"sslmode": "require"},
+    pool_pre_ping=True,
+    pool_recycle=3600
+)
 
 SessionLocal = sessionmaker(bind=engine,autoflush=False,autocommit=False)
 
