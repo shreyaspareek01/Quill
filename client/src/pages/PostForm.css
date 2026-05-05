@@ -1,0 +1,73 @@
+.post-form-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-6) 0;
+}
+
+.post-form__header {
+  margin-bottom: var(--space-8);
+}
+.post-form__title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  margin-top: var(--space-2);
+  color: var(--ink);
+}
+
+.post-form__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.post-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.post-form__title-input {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding: 0.85rem 1rem;
+}
+
+.post-form__textarea {
+  min-height: 280px;
+  font-size: 0.975rem;
+  line-height: 1.75;
+}
+
+.post-form__char-count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.input-label {
+  display: flex;
+  align-items: center;
+}
+
+.post-form__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.post-form__publish-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Re-use auth-spinner from AuthPage.css */

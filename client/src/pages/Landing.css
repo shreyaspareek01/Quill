@@ -1,0 +1,195 @@
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle warm texture overlay */
+.landing::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 70% 10%, rgba(176,141,91,0.07) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 10% 90%, rgba(176,141,91,0.05) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Header */
+.landing__header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-10);
+  border-bottom: 1px solid var(--border);
+}
+
+.landing__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.landing__logo svg { color: var(--accent); }
+
+.landing__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+.landing__nav-link {
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  transition: color var(--transition);
+}
+.landing__nav-link:hover { color: var(--ink); }
+
+/* Hero */
+.landing__hero {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-16);
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-20) var(--space-10);
+}
+
+.landing__hero-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.landing__eyebrow {
+  display: inline-block;
+  color: var(--accent);
+  letter-spacing: 0.18em;
+}
+
+.landing__headline {
+  font-size: clamp(3rem, 5.5vw, 5rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.landing__headline-em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.landing__sub {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--ink-muted);
+  max-width: 44ch;
+}
+
+.landing__cta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.landing__cta-main {
+  font-size: 0.925rem !important;
+  padding: 0.8rem 1.6rem !important;
+  letter-spacing: 0.02em;
+}
+
+/* Quote card */
+.landing__quote-card {
+  padding: var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  position: relative;
+}
+.landing__quote-icon {
+  color: var(--accent);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.landing__quote-text {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.landing__quote-author {
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+/* Features */
+.landing__features {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+}
+.landing__feature {
+  padding: var(--space-10) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-right: 1px solid var(--border);
+  transition: background var(--transition);
+}
+.landing__feature:last-child { border-right: none; }
+.landing__feature:hover { background: var(--bg-subtle); }
+
+.landing__feature-emoji {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-1);
+}
+.landing__feature h4 {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.landing__feature p {
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  line-height: 1.6;
+}
+
+/* Footer */
+.landing__footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: var(--space-6);
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .landing__hero {
+    grid-template-columns: 1fr;
+    gap: var(--space-10);
+    padding: var(--space-12) var(--space-6);
+  }
+  .landing__quote-card { display: none; }
+  .landing__features { grid-template-columns: 1fr; }
+  .landing__feature { border-right: none; border-bottom: 1px solid var(--border); }
+  .landing__header { padding: var(--space-5) var(--space-6); }
+}

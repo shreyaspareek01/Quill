@@ -1,0 +1,100 @@
+.post-detail {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-6) 0;
+}
+
+.post-detail__skeleton {
+  max-width: 720px;
+  padding-top: calc(72px + var(--space-10));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.post-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-8);
+  text-transform: uppercase;
+  transition: color var(--transition);
+}
+.post-detail__back:hover { color: var(--accent); }
+
+.post-detail__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.post-detail__title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.post-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.post-detail__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.post-detail__meta-sep { color: var(--border); }
+.post-detail__author-link {
+  color: var(--ink-faint);
+  transition: color var(--transition);
+}
+.post-detail__author-link:hover { color: var(--accent); }
+
+/* Content */
+.post-detail__content {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--ink-soft);
+  margin-bottom: var(--space-12);
+}
+.post-detail__content p { margin-bottom: var(--space-4); }
+
+/* Footer */
+.post-detail__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.post-detail__vote-btn {
+  font-size: 0.875rem !important;
+  gap: var(--space-2) !important;
+}
+.post-detail__vote-btn--active {
+  background: var(--accent-muted) !important;
+  border-color: var(--accent-light) !important;
+  color: var(--accent-dark) !important;
+}
+
+.post-detail__owner-actions {
+  display: flex;
+  gap: var(--space-3);
+}

@@ -6,7 +6,7 @@ from ..schemas import UserLogin,Token
 from .. import models,utils,oauth2
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 
-router = APIRouter()
+router = APIRouter(tags=['Auth'])
 
 @router.post("/login",response_model=Token)
 async def login(credentials:OAuth2PasswordRequestForm=Depends(),db:Session=Depends(get_db)):
