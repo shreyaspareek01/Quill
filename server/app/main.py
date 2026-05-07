@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine 
-from .routers import posts,users,auth,vote
+from .routers import posts,users,auth,vote,uploads
 
 # models.Base.metadata.create_all(bind=engine)
 # print("Database connected!")
@@ -20,6 +20,7 @@ app.include_router(posts.router)
 app.include_router(users.router)
 app.include_router(auth.router)
 app.include_router(vote.router)
+app.include_router(uploads.router)
 
 
 @app.get("/")

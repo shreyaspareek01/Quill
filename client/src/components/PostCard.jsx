@@ -65,6 +65,11 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && navigate(`/posts/${post.id}`)}
     >
+      {post.image_url && (
+        <div className="post-card__image-wrap">
+          <img className="post-card__image" src={post.image_url} alt={post.title} />
+        </div>
+      )}
       <div className="post-card__body">
         {!post.published && (
           <span className="badge badge-muted post-card__draft">Draft</span>

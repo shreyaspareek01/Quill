@@ -39,6 +39,9 @@ FastAPI backend for a social platform with PostgreSQL, SQLAlchemy, JWT authentic
    JWT_SECRET_KEY=your_secret_key
    ALGORITHM=HS256
    ACCESS_TOKEN_EXPIRE_MINUTES=30
+   CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+   CLOUDINARY_API_KEY=your_cloudinary_api_key
+   CLOUDINARY_API_SECRET=your_cloudinary_api_secret
    ```
 4. **Apply Migrations**:
    ```bash
@@ -90,6 +93,7 @@ Quill is optimized for cloud deployment:
 - **Database**: Managed **Neon PostgreSQL** with connection pooling enabled.
 
 ### UI Features
+
 - **Editorial Aesthetic**: Warm tones and serif fonts for a premium feel.
 - **Dynamic Voting**: Real-time feedback and state synchronization.
 - **Protected Routes**: Secure navigation based on authentication state.

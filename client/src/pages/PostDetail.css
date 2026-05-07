@@ -63,6 +63,21 @@
 }
 .post-detail__author-link:hover { color: var(--accent); }
 
+.post-detail__image-wrap {
+  margin-bottom: var(--space-8);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.post-detail__image {
+  width: 100%;
+  max-height: 480px;
+  object-fit: cover;
+  display: block;
+}
+
 /* Content */
 .post-detail__content {
   font-family: var(--font-sans);

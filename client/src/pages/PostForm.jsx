@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { getPost, updatePost, createPost } from '../api/posts';
+import { uploadPostImage } from '../api/uploads';
 import { useToast } from '../context/ToastContext';
 import Navbar from '../components/Navbar';
 import PageWrapper from '../components/PageWrapper';
@@ -13,8 +14,9 @@ export default function PostFormPage() {
   const navigate   = useNavigate();
   const toast      = useToast();
 
-  const [form, setForm]       = useState({ title: '', content: '', published: true });
+  const [form, setForm]       = useState({ title: '', content: '', image_url: '', published: true });
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
   const [errors, setErrors]   = useState({});
 
@@ -23,8 +25,8 @@ export default function PostFormPage() {
     (async () => {
       try {
         const { data } = await getPost(id);
-        const { title, content, published } = data.Post;
-        setForm({ title, content, published });
+        const { title, content, image_url, published } = data.Post;
+        setForm({ title, content, image_url: image_url || '', published });
       } catch {
         toast.error('Could not load post.');
         navigate('/feed');
@@ -32,12 +34,33 @@ export default function PostFormPage() {
         setFetching(false);
       }
     })();
-  }, [id]);
+  }, [id, isEdit, navigate, toast]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const { data } = await uploadPostImage(file);
+      setForm(prev => ({ ...prev, image_url: data.image_url || '' }));
+      toast.success('Image uploaded successfully.');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Image upload failed.');
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
   };
 
   const validate = () => {
@@ -54,11 +77,21 @@ export default function PostFormPage() {
     setLoading(true);
     try {
       if (isEdit) {
-        await updatePost(id, { title: form.title, content: form.content, published: form.published });
+        await updatePost(id, {
+          title: form.title,
+          content: form.content,
+          image_url: form.image_url || null,
+          published: form.published,
+        });
         toast.success('Post updated!');
         navigate(`/posts/${id}`);
       } else {
-        const { data } = await createPost({ title: form.title, content: form.content, published: form.published });
+        const { data } = await createPost({
+          title: form.title,
+          content: form.content,
+          image_url: form.image_url || null,
+          published: form.published,
+        });
         toast.success('Post published!');
         navigate(`/posts/${data.id}`);
       }
@@ -110,6 +143,24 @@ export default function PostFormPage() {
                       onChange={handleChange}
                     />
                     {errors.title && <p className="error-msg">{errors.title}</p>}
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label" htmlFor="post-image">Cover image</label>
+                    <input
+                      id="post-image"
+                      type="file"
+                      accept="image/*"
+                      className="input"
+                      onChange={handleImageSelect}
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage && <p className="post-form__uploading">Uploading image...</p>}
+                    {form.image_url && (
+                      <div className="post-form__image-preview">
+                        <img src={form.image_url} alt="Post cover preview" />
+                      </div>
+                    )}
                   </div>
 
                   <div className="input-group">

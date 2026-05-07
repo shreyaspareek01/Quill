@@ -41,7 +41,7 @@ export default function PostDetailPage() {
       }
     };
     fetch();
-  }, [id]);
+  }, [id, navigate, toast]);
 
   const handleVote = async () => {
     if (voteLoading) return;
@@ -120,6 +120,12 @@ export default function PostDetailPage() {
                   </span>
                 </div>
               </header>
+
+              {Post.image_url && (
+                <div className="post-detail__image-wrap">
+                  <img className="post-detail__image" src={Post.image_url} alt={Post.title} />
+                </div>
+              )}
 
               {/* Content */}
               <div className="post-detail__content">

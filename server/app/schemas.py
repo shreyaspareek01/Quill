@@ -22,6 +22,7 @@ class UserLogin(BaseModel):
 class PostBase(BaseModel):
     title:str
     content:str
+    image_url: Optional[str] = None
     published:bool =  True
     model_config = ConfigDict(extra="forbid")
 
