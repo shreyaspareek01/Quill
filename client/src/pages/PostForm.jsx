@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Image as ImageIcon } from 'lucide-react';
 import { getPost, updatePost, createPost } from '../api/posts';
 import { uploadPostImage } from '../api/uploads';
 import { useToast } from '../context/ToastContext';
-import Navbar from '../components/Navbar';
-import PageWrapper from '../components/PageWrapper';
 import './PostForm.css';
 
 export default function PostFormPage() {
@@ -45,28 +43,22 @@ export default function PostFormPage() {
   const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file.');
-      return;
-    }
-
     setUploadingImage(true);
     try {
       const { data } = await uploadPostImage(file);
       setForm(prev => ({ ...prev, image_url: data.image_url || '' }));
-      toast.success('Image uploaded successfully.');
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Image upload failed.');
+      toast.success('Image uploaded.');
+    } catch {
+      toast.error('Upload failed.');
     } finally {
       setUploadingImage(false);
-      e.target.value = '';
     }
   };
 
   const validate = () => {
     const errs = {};
-    if (!form.title.trim()) errs.title = 'Title is required.';
-    if (!form.content.trim()) errs.content = 'Content is required.';
+    if (!form.title.trim()) errs.title = 'Required';
+    if (!form.content.trim()) errs.content = 'Required';
     return errs;
   };
 
@@ -77,146 +69,92 @@ export default function PostFormPage() {
     setLoading(true);
     try {
       if (isEdit) {
-        await updatePost(id, {
-          title: form.title,
-          content: form.content,
-          image_url: form.image_url || null,
-          published: form.published,
-        });
-        toast.success('Post updated!');
+        await updatePost(id, { ...form, image_url: form.image_url || null });
+        toast.success('Updated.');
         navigate(`/posts/${id}`);
       } else {
-        const { data } = await createPost({
-          title: form.title,
-          content: form.content,
-          image_url: form.image_url || null,
-          published: form.published,
-        });
-        toast.success('Post published!');
+        const { data } = await createPost({ ...form, image_url: form.image_url || null });
+        toast.success('Published.');
         navigate(`/posts/${data.id}`);
       }
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Something went wrong.');
+    } catch {
+      toast.error('Action failed.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) return <div className="skeleton" style={{ height: '400px' }} />;
+
   return (
-    <>
-      <Navbar />
-      <PageWrapper>
-        <div className="page-content">
-          <div className="page-container">
-            <div className="post-form-wrap">
-              <Link to={isEdit ? `/posts/${id}` : '/feed'} className="post-detail__back">
-                <ArrowLeft size={15} strokeWidth={2} />
-                {isEdit ? 'Back to post' : 'Back to feed'}
-              </Link>
-
-              <div className="post-form__header">
-                <span className="label" style={{ color: 'var(--accent)' }}>
-                  {isEdit ? 'Editing post' : 'New post'}
-                </span>
-                <h2 className="post-form__title">
-                  {isEdit ? 'Update your writing' : 'What would you like to share?'}
-                </h2>
-                <span className="gold-line" />
-              </div>
-
-              {fetching ? (
-                <div className="post-form__loading">
-                  <div className="skeleton" style={{ height: '3rem', width: '100%' }} />
-                  <div className="skeleton" style={{ height: '12rem', width: '100%', marginTop: '1rem' }} />
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="post-form">
-                  <div className="input-group">
-                    <label className="input-label" htmlFor="post-title">Title</label>
-                    <input
-                      id="post-title"
-                      name="title"
-                      type="text"
-                      className={`input post-form__title-input ${errors.title ? 'error' : ''}`}
-                      placeholder="Give your post a compelling title…"
-                      value={form.title}
-                      onChange={handleChange}
-                    />
-                    {errors.title && <p className="error-msg">{errors.title}</p>}
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" htmlFor="post-image">Cover image</label>
-                    <input
-                      id="post-image"
-                      type="file"
-                      accept="image/*"
-                      className="input"
-                      onChange={handleImageSelect}
-                      disabled={uploadingImage}
-                    />
-                    {uploadingImage && <p className="post-form__uploading">Uploading image...</p>}
-                    {form.image_url && (
-                      <div className="post-form__image-preview">
-                        <img src={form.image_url} alt="Post cover preview" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label" htmlFor="post-content">
-                      Content
-                      <span className="post-form__char-count">{form.content.length} chars</span>
-                    </label>
-                    <textarea
-                      id="post-content"
-                      name="content"
-                      className={`input post-form__textarea ${errors.content ? 'error' : ''}`}
-                      placeholder="Write something worth reading…"
-                      value={form.content}
-                      onChange={handleChange}
-                      rows={10}
-                    />
-                    {errors.content && <p className="error-msg">{errors.content}</p>}
-                  </div>
-
-                  <div className="post-form__footer">
-                    <label className="toggle-wrapper post-form__publish-toggle">
-                      <span className="input-label" style={{ marginBottom: 0 }}>
-                        {form.published ? 'Published' : 'Draft'}
-                      </span>
-                      <label className="toggle">
-                        <input
-                          type="checkbox"
-                          name="published"
-                          checked={form.published}
-                          onChange={handleChange}
-                          id="post-published"
-                        />
-                        <span className="toggle-slider" />
-                      </label>
-                    </label>
-
-                    <button
-                      id="post-form-submit"
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={loading}
-                    >
-                      {loading ? <span className="auth-spinner" /> : (
-                        <>
-                          <Save size={15} strokeWidth={2} />
-                          {isEdit ? 'Save changes' : 'Publish post'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
+    <div className="editor-page fade-in">
+      <header className="editor-header">
+        <button onClick={() => navigate(-1)} className="btn-icon">
+          <ArrowLeft size={20} strokeWidth={1.5} />
+        </button>
+        <div className="ml-auto flex items-center gap-24">
+          <span className="text-label italic">
+            {form.content.split(/\s+/).filter(x => x).length} words
+          </span>
+          <button 
+            onClick={handleSubmit} 
+            className="btn btn-primary btn-sm"
+            disabled={loading || uploadingImage}
+          >
+            <Save size={14} />
+            <span>{isEdit ? 'Save' : 'Publish'}</span>
+          </button>
         </div>
-      </PageWrapper>
-    </>
+      </header>
+
+      <form onSubmit={handleSubmit} className="editor-form">
+        <div className="editor-cover">
+          {form.image_url ? (
+            <div className="editor-cover__preview">
+              <img src={form.image_url} alt="" />
+              <button 
+                type="button" 
+                className="btn btn-gold btn-sm editor-cover__change"
+                onClick={() => document.getElementById('cover-upload').click()}
+              >
+                Change Cover
+              </button>
+            </div>
+          ) : (
+            <button 
+              type="button"
+              className="editor-cover__placeholder"
+              onClick={() => document.getElementById('cover-upload').click()}
+            >
+              <ImageIcon size={24} strokeWidth={1} />
+              <span>Add a cover image</span>
+            </button>
+          )}
+          <input 
+            id="cover-upload"
+            type="file" 
+            hidden 
+            onChange={handleImageSelect}
+          />
+        </div>
+
+        <input
+          name="title"
+          className="editor-title-input font-serif"
+          placeholder="A Compelling Title..."
+          value={form.title}
+          onChange={handleChange}
+          autoFocus
+        />
+
+        <textarea
+          name="content"
+          className="editor-textarea"
+          placeholder="Every great idea starts as a sentence..."
+          value={form.content}
+          onChange={handleChange}
+        />
+      </form>
+    </div>
   );
 }

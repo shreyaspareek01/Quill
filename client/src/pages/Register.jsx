@@ -1,152 +1,137 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Feather, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { registerUser } from '../api/auth';
-import { useToast } from '../context/ToastContext';
-import PageWrapper from '../components/PageWrapper';
-import './AuthPage.css';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Feather, Globe, Code } from "lucide-react";
+import { registerUser } from "../api/auth";
+import { useToast } from "../context/ToastContext";
+import "./AuthPage.css";
 
 export default function RegisterPage() {
   const toast = useToast();
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({ email: '', password: '', confirm: '' });
-  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    fullName: "",
+    username: "",
+  });
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    setErrors(prev => ({ ...prev, [e.target.name]: '' }));
-  };
-
-  const validate = () => {
-    const errs = {};
-    if (!form.email) errs.email = 'Email is required.';
-    if (form.password.length < 6) errs.password = 'Password must be at least 6 characters.';
-    if (form.password !== form.confirm) errs.confirm = 'Passwords do not match.';
-    return errs;
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
     setLoading(true);
     try {
       await registerUser({ email: form.email, password: form.password });
-      toast.success('Account created! Please sign in.');
-      navigate('/login');
+      toast.success("Welcome to Quill.");
+      navigate("/login");
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Registration failed. Try again.';
-      setErrors({ general: typeof msg === 'string' ? msg : 'Something went wrong.' });
+      setError(err.response?.data?.detail || "Registration failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <PageWrapper>
-      <div className="auth-page">
-        <div className="auth-brand">
-          <Link to="/" className="auth-logo">
-            <Feather size={20} strokeWidth={1.5} />
-            <span>Quill</span>
-          </Link>
-          <div className="auth-brand-text">
-            <h2>Every great story<br />starts somewhere.</h2>
-            <p>Yours begins right here.</p>
-          </div>
+    <div className="auth-split-layout fade-in">
+      <div className="auth-split__left">
+        <Link to="/" className="auth-split__logo">
+          <Feather size={28} strokeWidth={1.5} color="var(--color-gold)" />
+          <span>Quill</span>
+        </Link>
+        <div className="auth-split__quote-wrap">
+          <blockquote className="auth-split__quote">
+            "A writer is a world <br />trapped in a person."
+          </blockquote>
+          <cite className="auth-split__cite">— Victor Hugo</cite>
         </div>
+        <div className="auth-split__texture" />
+      </div>
 
-        <div className="auth-card card">
-          <div className="auth-card__header">
-            <span className="label">Get started</span>
-            <h3 className="auth-card__title">Create your account</h3>
-            <span className="gold-line" />
+      <div className="auth-split__right">
+        <div className="auth-split__form-container">
+          <header className="auth-split__header">
+            <h1 className="auth-split__title">Join Quill</h1>
+            <p className="auth-split__subtitle">Begin your journey in a refined space for thought.</p>
+          </header>
+
+          <div className="auth-social-buttons">
+            <button className="auth-social-btn">
+              <Globe size={18} strokeWidth={1.2} />
+              <span>Continue with Google</span>
+            </button>
+            <button className="auth-social-btn">
+              <Code size={18} strokeWidth={1.2} />
+              <span>Continue with Github</span>
+            </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="input-group">
-              <label className="input-label" htmlFor="reg-email">Email address</label>
-              <div className="input-icon-wrap">
-                <Mail size={15} className="input-icon" strokeWidth={1.5} />
-                <input
-                  id="reg-email"
-                  name="email"
-                  type="email"
-                  className={`input input--icon ${errors.email ? 'error' : ''}`}
-                  placeholder="you@example.com"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              {errors.email && <p className="error-msg">{errors.email}</p>}
+          <div className="auth-divider">
+            <span className="text-label">or</span>
+          </div>
+
+          <form onSubmit={handleSubmit} className="auth-split__form">
+            <div className="auth-input-field">
+              <label>Full Name</label>
+              <input
+                name="fullName"
+                type="text"
+                className="auth-input"
+                placeholder="Joan Didion"
+                value={form.fullName}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            <div className="input-group">
-              <label className="input-label" htmlFor="reg-password">Password</label>
-              <div className="input-icon-wrap">
-                <Lock size={15} className="input-icon" strokeWidth={1.5} />
-                <input
-                  id="reg-password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  className={`input input--icon input--icon-right ${errors.password ? 'error' : ''}`}
-                  placeholder="Min. 6 characters"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                />
-                <button
-                  type="button"
-                  className="input-icon-right-btn"
-                  onClick={() => setShowPassword(p => !p)}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-                </button>
-              </div>
-              {errors.password && <p className="error-msg">{errors.password}</p>}
+            <div className="auth-input-field">
+              <label>Email address</label>
+              <input
+                name="email"
+                type="email"
+                className="auth-input"
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            <div className="input-group">
-              <label className="input-label" htmlFor="reg-confirm">Confirm password</label>
-              <div className="input-icon-wrap">
-                <Lock size={15} className="input-icon" strokeWidth={1.5} />
-                <input
-                  id="reg-confirm"
-                  name="confirm"
-                  type={showPassword ? 'text' : 'password'}
-                  className={`input input--icon ${errors.confirm ? 'error' : ''}`}
-                  placeholder="Repeat your password"
-                  value={form.confirm}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              {errors.confirm && <p className="error-msg">{errors.confirm}</p>}
+            <div className="auth-input-field">
+              <label>Password</label>
+              <input
+                name="password"
+                type="password"
+                className="auth-input"
+                placeholder="Create a password"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            {errors.general && <p className="error-msg">{errors.general}</p>}
+            {error && <p className="text-caption" style={{ color: 'var(--color-destructive)' }}>{error}</p>}
 
             <button
-              id="register-submit"
               type="submit"
-              className="btn btn-primary auth-submit"
+              className="btn btn-primary"
               disabled={loading}
+              style={{ marginTop: 'var(--space-12)' }}
             >
-              {loading ? <span className="auth-spinner" /> : 'Create account'}
+              {loading ? 'Creating...' : 'Create Account'}
             </button>
           </form>
 
-          <p className="auth-switch">
-            Already have an account?{' '}
-            <Link to="/login" className="auth-switch-link">Sign in</Link>
+          <p className="text-caption" style={{ textAlign: 'center' }}>
+            Already on Quill? <Link to="/login" className="link-gold">Sign in</Link>
           </p>
         </div>
       </div>
-    </PageWrapper>
+    </div>
   );
 }
