@@ -1,39 +1,42 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useMemo } from 'react';
 
 const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
+  const [toast, setToast] = useState(null);
+  const [removing, setRemoving] = useState(false);
+  const timerRef = useRef(null);
+  const showingRef = useRef(false);
 
-  const addToast = useCallback((message, type = 'default') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev =>
-        prev.map(t => t.id === id ? { ...t, removing: true } : t)
-      );
+  const show = useCallback((message, type = 'default') => {
+    if (showingRef.current) return;
+    showingRef.current = true;
+    setRemoving(false);
+    setToast({ message, type });
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setRemoving(true);
       setTimeout(() => {
-        setToasts(prev => prev.filter(t => t.id !== id));
+        setToast(null);
+        showingRef.current = false;
       }, 300);
-    }, 3200);
+    }, 3000);
   }, []);
 
-  const toast = {
-    success: (msg) => addToast(msg, 'success'),
-    error:   (msg) => addToast(msg, 'error'),
-    info:    (msg) => addToast(msg, 'default'),
-  };
+  const toastApi = useMemo(() => ({
+    success: (msg) => show(msg, 'success'),
+    error:   (msg) => show(msg, 'error'),
+    info:    (msg) => show(msg, 'default'),
+  }), [show]);
 
   return (
-    <ToastContext.Provider value={toast}>
+    <ToastContext.Provider value={toastApi}>
       {children}
-      <div className="toast-container">
-        {toasts.map(t => (
-          <div key={t.id} className={`toast ${t.type} ${t.removing ? 'removing' : ''}`}>
-            <span>{t.message}</span>
-          </div>
-        ))}
-      </div>
+      {toast && (
+        <div className={`toast ${toast.type} ${removing ? 'removing' : ''}`}>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </ToastContext.Provider>
   );
 }

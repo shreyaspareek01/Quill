@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Heart, Bookmark, Share2, MoreHorizontal, Feather, Clock } from 'lucide-react';
 import { castVote } from '../api/votes';
-import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
-import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
+import { bookmarkPost, removeBookmark } from '../api/bookmarks';
+import { followUser, unfollowUser } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -17,7 +17,7 @@ function formatDate(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function PostCard({ post, votes: initialVotes, hasVoted: initialVoted, onDelete, onFollowChange }) {
+export default function PostCard({ post, votes: initialVotes, hasVoted: initialVoted, comment_count: initialComments, onDelete, onFollowChange }) {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -30,54 +30,64 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isOwner = user?.id === post.owner_id;
-  const displayName = post.owner?.full_name || post.owner?.username || post.owner?.email?.split('@')[0] || 'Writer';
-  const username = post.owner?.username || post.owner?.email?.split('@')[0] || 'writer';
+  const displayName = post.owner?.full_name || post.owner?.username || post.owner?.email?.split('@')[0] || 'User';
+  const username = post.owner?.username || post.owner?.email?.split('@')[0] || 'user';
 
   const handleVote = async (e) => {
     e.stopPropagation();
-    if (voteLoading || !user) { if (!user) toast.error('Sign in to vote'); return; }
+    if (voteLoading || !user) { if (!user) toast.error('Sign in to like'); return; }
     setVoteLoading(true);
     const dir = voted ? 0 : 1;
     try {
       await castVote(post.id, dir);
       setVoted(!voted);
       setVotes(v => v + (dir === 1 ? 1 : -1));
-    } catch { toast.error('Vote failed'); }
+    } catch { toast.error('Failed'); }
     finally { setVoteLoading(false); }
   };
 
   const handleBookmark = async (e) => {
     e.stopPropagation();
-    if (!user) { toast.error('Sign in to bookmark'); return; }
+    if (!user) { toast.error('Sign in to save'); return; }
     try {
-      if (bookmarked) { await removeBookmark(post.id); setBookmarked(false); toast.success('Bookmark removed'); }
-      else { await bookmarkPost(post.id); setBookmarked(true); toast.success('Bookmarked'); }
-    } catch { toast.error('Action failed'); }
+      if (bookmarked) { await removeBookmark(post.id); setBookmarked(false); toast.success('Removed'); }
+      else { await bookmarkPost(post.id); setBookmarked(true); toast.success('Saved'); }
+    } catch { toast.error('Failed'); }
   };
 
   const handleFollow = async (e) => {
     e.stopPropagation();
     if (!user) { toast.error('Sign in to follow'); return; }
     try {
-      if (following) { await unfollowUser(post.owner_id); setFollowing(false); toast.success('Unfollowed'); }
-      else { await followUser(post.owner_id); setFollowing(true); toast.success('Following'); }
+      if (following) { await unfollowUser(post.owner_id); setFollowing(false); }
+      else { await followUser(post.owner_id); setFollowing(true); }
       onFollowChange?.(post.owner_id, !following);
-    } catch { toast.error('Action failed'); }
+    } catch { toast.error('Failed'); }
+  };
+
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      try { await navigator.share({ title: post.title, url: `${window.location.origin}/posts/${post.id}` }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
+      toast.success('Link copied');
+    }
   };
 
   return (
     <article
       onClick={() => navigate(`/posts/${post.id}`)}
       style={{
-        padding: '24px 0', borderBottom: '1px solid var(--color-border)',
+        padding: '20px 0', borderBottom: '1px solid var(--color-border)',
         cursor: 'pointer', transition: 'background-color var(--duration-fast) var(--ease-out)',
       }}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(var(--color-bg-rgb), 0.3)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div className="avatar avatar-sm" style={{ width: '36px', height: '36px' }}>
+          <div className="avatar avatar-sm" style={{ width: '36px', height: '36px' }} onClick={e => { e.stopPropagation(); navigate(`/profile/${post.owner_id}`); }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{displayName[0]?.toUpperCase()}</span>
           </div>
           <div>
@@ -102,15 +112,14 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
                 color: following ? 'var(--color-text-primary)' : '#FFF',
                 transition: 'all var(--duration-fast) var(--ease-out)',
               }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = following ? '' : 'var(--color-gold)'; e.currentTarget.style.borderColor = following ? '' : 'var(--color-gold)'; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = following ? 'transparent' : 'var(--color-ink)'; e.currentTarget.style.borderColor = following ? 'var(--color-border-strong)' : 'var(--color-ink)'; }}
+              onMouseEnter={e => { if (!following) { e.currentTarget.style.backgroundColor = 'var(--color-gold)'; e.currentTarget.style.borderColor = 'var(--color-gold)'; }}}
+              onMouseLeave={e => { if (!following) { e.currentTarget.style.backgroundColor = 'var(--color-ink)'; e.currentTarget.style.borderColor = 'var(--color-ink)'; }}}
             >
               {following ? 'Following' : 'Follow'}
             </button>
           )}
           <button className="btn-icon" style={{ width: '32px', height: '32px' }}
-            onClick={e => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-          >
+            onClick={e => { e.stopPropagation(); setMenuOpen(!menuOpen); }}>
             <MoreHorizontal size={16} strokeWidth={1.5} />
           </button>
           {menuOpen && (
@@ -137,40 +146,41 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
 
       <div style={{ paddingLeft: '46px' }}>
         {post.title && (
-          <h2 className="font-serif" style={{ fontSize: '22px', fontWeight: 700, lineHeight: 1.2, marginBottom: '8px', letterSpacing: 'var(--ls-tight)' }}>
+          <h2 className="font-serif" style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1.2, marginBottom: '6px', letterSpacing: 'var(--ls-tight)' }}>
             {post.title}
           </h2>
         )}
         <p className="text-body" style={{ fontSize: '15px', lineHeight: 1.6 }}>
           {post.content.length > 280 ? (
             <>{post.content.slice(0, 280)}<span style={{ opacity: 0.4 }}>... </span>
-              <span style={{ color: 'var(--color-gold)', fontWeight: 600, fontSize: '13px' }}>Continue reading</span>
+              <span style={{ color: 'var(--color-gold)', fontWeight: 600, fontSize: '13px' }}>Read more</span>
             </>
           ) : post.content}
         </p>
         {post.image_url && (
-          <div style={{ marginTop: '12px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            <img src={post.image_url} alt="" loading="lazy" style={{ width: '100%', maxHeight: '400px', objectFit: 'cover', display: 'block' }} />
+          <div style={{ marginTop: '10px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+            <img src={post.image_url} alt="" loading="lazy" style={{ width: '100%', maxHeight: '360px', objectFit: 'cover', display: 'block' }} />
           </div>
         )}
       </div>
 
-      <div style={{ paddingLeft: '46px', marginTop: '16px' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+      <div style={{ paddingLeft: '46px', marginTop: '14px' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <button onClick={handleVote} disabled={voteLoading}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: voted ? 'var(--color-gold)' : 'var(--color-text-muted)', transition: 'color var(--duration-fast) var(--ease-out)' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: voted ? 'var(--color-gold)' : 'var(--color-text-muted)' }}>
             <Heart size={16} strokeWidth={1.5} fill={voted ? 'var(--color-gold)' : 'none'} />
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{votes}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{votes}</span>
           </button>
           <button onClick={e => { e.stopPropagation(); navigate(`/posts/${post.id}`); }}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-muted)', transition: 'color var(--duration-fast) var(--ease-out)' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
             <MessageCircle size={16} strokeWidth={1.5} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{initialComments ?? 0}</span>
           </button>
           <button onClick={handleBookmark}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: bookmarked ? 'var(--color-gold)' : 'var(--color-text-muted)', transition: 'color var(--duration-fast) var(--ease-out)' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: bookmarked ? 'var(--color-gold)' : 'var(--color-text-muted)' }}>
             <Bookmark size={16} strokeWidth={1.5} fill={bookmarked ? 'var(--color-gold)' : 'none'} />
           </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+          <button onClick={handleShare} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
             <Share2 size={16} strokeWidth={1.5} />
           </button>
         </div>

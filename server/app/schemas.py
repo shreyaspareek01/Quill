@@ -11,6 +11,13 @@ class UserCreate(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    website: Optional[str] = None
+
 class UserResponse(BaseModel):
     id:int 
     email:EmailStr
@@ -47,6 +54,7 @@ class PostResponseWithVotes(BaseModel):
     Post:PostResponse
     votes: int
     has_voted: bool = False
+    comment_count: int = 0
     model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):

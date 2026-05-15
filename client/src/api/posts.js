@@ -14,3 +14,6 @@ export const updatePost = (id, data) =>
 
 export const deletePost = (id) =>
   api.delete(`/posts/${id}`);
+
+export const getFollowingPosts = (params = {}) =>
+  api.get('/posts/following', { params });

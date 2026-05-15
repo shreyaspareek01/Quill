@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getPosts } from '../api/posts';
+import { getPosts, getFollowingPosts } from '../api/posts';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import PostCard from '../components/PostCard';
 
 export default function FeedPage() {
+  const { user } = useAuth();
   const toast = useToast();
   const [searchParams] = useSearchParams();
   const [posts, setPosts] = useState([]);
@@ -14,14 +16,21 @@ export default function FeedPage() {
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { limit: 30 };
-      const search = searchParams.get('search');
-      if (search) params.search = search;
-      const { data } = await getPosts(params);
+      let data;
+      if (activeTab === 'following' && user) {
+        const res = await getFollowingPosts({ limit: 30 });
+        data = res.data;
+      } else {
+        const params = { limit: 30 };
+        const search = searchParams.get('search');
+        if (search) params.search = search;
+        const res = await getPosts(params);
+        data = res.data;
+      }
       setPosts(data);
     } catch { toast.error('Failed to load posts'); }
     finally { setLoading(false); }
-  }, [toast, searchParams]);
+  }, [toast, searchParams, activeTab, user]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -55,18 +64,22 @@ export default function FeedPage() {
       <div>
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} style={{ padding: '24px 0', borderBottom: '1px solid var(--color-border)' }}>
-              <div className="skeleton" style={{ height: '120px', width: '100%' }} />
+            <div key={i} style={{ padding: '20px 0', borderBottom: '1px solid var(--color-border)' }}>
+              <div className="skeleton" style={{ height: '100px', width: '100%' }} />
             </div>
           ))
         ) : posts.length === 0 ? (
           <div style={{ padding: '80px 0', textAlign: 'center' }}>
-            <p className="font-serif" style={{ fontSize: '20px', marginBottom: '8px' }}>No posts yet</p>
-            <p className="text-caption">The well is dry. Be the first to write.</p>
+            <p className="font-serif" style={{ fontSize: '20px', marginBottom: '8px' }}>
+              {activeTab === 'following' ? 'No posts from followed users' : 'No posts yet'}
+            </p>
+            <p className="text-caption">
+              {activeTab === 'following' ? 'Follow some users to see their posts here.' : 'Be the first to share something.'}
+            </p>
           </div>
         ) : (
-          posts.map(({ Post, votes, has_voted }) => (
-            <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} onDelete={handleDelete} />
+          posts.map(({ Post, votes, has_voted, comment_count }) => (
+            <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} comment_count={comment_count} onDelete={handleDelete} />
           ))
         )}
       </div>

@@ -5,3 +5,6 @@ export const getUser = (id) =>
 
 export const getUsers = () =>
   api.get('/users/');
+
+export const updateUser = (id, data) =>
+  api.put(`/users/${id}`, data);

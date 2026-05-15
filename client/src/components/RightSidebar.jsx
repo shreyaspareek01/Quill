@@ -13,13 +13,13 @@ export default function RightSidebar() {
   return (
     <aside className="app-sidebar">
       <section style={{ marginBottom: 'var(--space-48)' }}>
-        <h3 className="text-label" style={{ marginBottom: 'var(--space-20)' }}>Trending</h3>
+        <h3 className="text-label" style={{ marginBottom: 'var(--space-20)' }}>Trending Posts</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {trendingPosts.slice(0, 5).map(({ Post, votes }) => (
             <div key={Post.id}
               onClick={() => navigate(`/posts/${Post.id}`)}
               style={{
-                padding: '12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                 transition: 'background-color var(--duration-fast) var(--ease-out)',
               }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'}
@@ -28,11 +28,11 @@ export default function RightSidebar() {
               <p className="font-serif" style={{ fontSize: '14px', fontWeight: 600, lineHeight: 1.3, marginBottom: '4px' }}>
                 {Post.title.length > 50 ? Post.title.slice(0, 50) + '...' : Post.title}
               </p>
-              <span className="text-caption" style={{ fontSize: '11px' }}>{votes} appreciations</span>
+              <span className="text-caption" style={{ fontSize: '11px' }}>{votes} likes</span>
             </div>
           ))}
           {trendingPosts.length === 0 && (
-            <p className="text-caption" style={{ padding: '12px 0' }}>No posts yet</p>
+            <p className="text-caption" style={{ padding: '10px 0' }}>No posts yet</p>
           )}
         </div>
       </section>
@@ -40,13 +40,13 @@ export default function RightSidebar() {
       <section>
         <h3 className="text-label" style={{ marginBottom: 'var(--space-20)' }}>About</h3>
         <p className="text-caption" style={{ lineHeight: 1.6, marginBottom: 'var(--space-16)' }}>
-          A refined space for writing and sharing ideas.
+          A social platform for sharing and connecting through posts.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-          <span>© 2026 Quill</span>
-          <span>·</span>
+          <span>&copy; 2026 Quill</span>
+          <span>&middot;</span>
           <span>Privacy</span>
-          <span>·</span>
+          <span>&middot;</span>
           <span>Terms</span>
         </div>
       </section>

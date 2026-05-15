@@ -13,35 +13,62 @@ router = APIRouter(prefix="/posts",tags=["Posts"])
 async def get_posts(db: Session = Depends(get_db),user: Optional[models.User] = Depends(oauth2.get_optional_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0),search:Optional[str]=""):
     user_id = user.id if user else -1
     voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
+    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
     
     results = db.query(
         models.Post, 
         func.count(models.Vote.post_id).label("votes"),
-        models.Post.id.in_(voted_subquery).label("has_voted")
+        models.Post.id.in_(voted_subquery).label("has_voted"),
+        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
     ).join(
         models.Vote, models.Vote.post_id == models.Post.id, isouter=True
-    ).group_by(models.Post.id).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()
+    ).join(
+        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
+    ).group_by(models.Post.id, comment_subquery.c.cnt).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()
     
-    return [{"Post": post, "votes": votes, "has_voted": has_voted} for post, votes, has_voted in results]
+    return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
+
+@router.get("/following",response_model=list[PostResponseWithVotes])
+async def get_following_posts(db: Session = Depends(get_db),user: models.User = Depends(oauth2.get_current_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0)):
+    followed_ids = db.query(models.Follow.following_id).filter(models.Follow.follower_id == user.id).subquery()
+    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user.id).subquery()
+    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
+    
+    results = db.query(
+        models.Post, 
+        func.count(models.Vote.post_id).label("votes"),
+        models.Post.id.in_(voted_subquery).label("has_voted"),
+        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
+    ).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True
+    ).join(
+        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
+    ).filter(models.Post.owner_id.in_(followed_ids)).group_by(models.Post.id, comment_subquery.c.cnt).limit(limit).offset(skip).all()
+    
+    return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
 
 @router.get("/{id}",response_model=PostResponseWithVotes)
 async def get_post(id:int,db:Session = Depends(get_db),user: Optional[models.User] = Depends(oauth2.get_optional_user)):
     user_id = user.id if user else -1
     voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
+    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
     
     result = db.query(
         models.Post, 
         func.count(models.Vote.post_id).label("votes"),
-        models.Post.id.in_(voted_subquery).label("has_voted")
+        models.Post.id.in_(voted_subquery).label("has_voted"),
+        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
     ).join(
         models.Vote, models.Vote.post_id == models.Post.id, isouter=True
-    ).group_by(models.Post.id).filter(models.Post.id==id).first()
+    ).join(
+        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
+    ).group_by(models.Post.id, comment_subquery.c.cnt).filter(models.Post.id==id).first()
     
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Post with id:{id} not found!")
     
-    post, votes, has_voted = result
-    return {"Post": post, "votes": votes, "has_voted": has_voted}
+    post, votes, has_voted, comment_count = result
+    return {"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": comment_count}
 
 @router.post("/",status_code=status.HTTP_201_CREATED,response_model=PostResponse)
 async def create_post(post:PostCreate,db:Session = Depends(get_db),user: int = Depends(oauth2.get_current_user)):
