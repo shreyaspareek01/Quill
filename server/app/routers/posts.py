@@ -24,7 +24,28 @@ async def get_posts(db: Session = Depends(get_db),user: Optional[models.User] = 
         models.Vote, models.Vote.post_id == models.Post.id, isouter=True
     ).join(
         comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
-    ).group_by(models.Post.id, comment_subquery.c.cnt).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()
+    ).group_by(models.Post.id, comment_subquery.c.cnt).filter(models.Post.title.contains(search), models.Post.owner_id != user_id).limit(limit).offset(skip).all()
+    
+    return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
+
+@router.get("/liked/{user_id}",response_model=list[PostResponseWithVotes])
+async def get_liked_posts(user_id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user)):
+    current_user_id = user.id if user else -1
+    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == current_user_id).subquery()
+    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
+    
+    liked_post_ids = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
+    
+    results = db.query(
+        models.Post, 
+        func.count(models.Vote.post_id).label("votes"),
+        models.Post.id.in_(voted_subquery).label("has_voted"),
+        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
+    ).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True
+    ).join(
+        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
+    ).filter(models.Post.id.in_(liked_post_ids)).group_by(models.Post.id, comment_subquery.c.cnt).all()
     
     return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
 

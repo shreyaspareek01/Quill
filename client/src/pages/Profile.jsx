@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, Link as LinkIcon, Calendar, Feather, ArrowLeft } from 'lucide-react';
 import { getUser } from '../api/users';
-import { getPosts } from '../api/posts';
+import { getPosts, getLikedPosts } from '../api/posts';
 import { getFollowStatus, followUser, unfollowUser } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -20,7 +20,9 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [likedPosts, setLikedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [likedLoading, setLikedLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
   const [followStatus, setFollowStatus] = useState({ is_following: false, followers_count: 0, following_count: 0 });
   const [followLoading, setFollowLoading] = useState(false);
@@ -44,7 +46,22 @@ export default function ProfilePage() {
     })();
   }, [id, me, toast]);
 
-  const handleDelete = (postId) => setPosts(prev => prev.filter(p => p.Post.id !== postId));
+  useEffect(() => {
+    if (activeTab !== 'likes' || likedPosts.length > 0 || !id) return;
+    (async () => {
+      setLikedLoading(true);
+      try {
+        const { data } = await getLikedPosts(parseInt(id));
+        setLikedPosts(data);
+      } catch {}
+      finally { setLikedLoading(false); }
+    })();
+  }, [activeTab, id, likedPosts.length]);
+
+  const handleDelete = (postId) => {
+    setPosts(prev => prev.filter(p => p.Post.id !== postId));
+    setLikedPosts(prev => prev.filter(p => p.Post.id !== postId));
+  };
 
   const handleFollow = async () => {
     if (!me) { toast.error('Sign in to follow'); return; }
@@ -88,20 +105,18 @@ export default function ProfilePage() {
       <div style={{ position: 'relative', marginBottom: '20px' }}>
         <div style={{
           height: '160px', borderRadius: 'var(--radius-md)',
-          backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)',
+          background: profile.cover_url ? `url(${profile.cover_url}) center/cover` : 'linear-gradient(135deg, var(--color-gold-subtle) 0%, var(--color-border) 100%)',
+          border: '1px solid var(--color-border)',
           marginBottom: '-48px',
-          backgroundImage: 'radial-gradient(var(--color-border) 1px, transparent 1px)',
-          backgroundSize: '20px 20px', opacity: 0.6,
         }} />
       </div>
 
       <div style={{ padding: '0 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
-          <div className="avatar avatar-lg" style={{ border: '4px solid var(--color-bg)', position: 'relative', width: '88px', height: '88px' }}>
-            <span style={{ fontSize: '28px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{displayName[0]?.toUpperCase()}</span>
-            <div style={{ position: 'absolute', bottom: 0, right: 0, width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--color-bg)' }}>
+          <div className="avatar avatar-lg" style={{ border: '4px solid var(--color-bg)', position: 'relative', width: '88px', height: '88px', background: profile.avatar_url ? `url(${profile.avatar_url}) center/cover no-repeat` : undefined }}>
+            {profile.avatar_url && <div style={{ position: 'absolute', bottom: 0, right: 0, width: '22px', height: '22px', borderRadius: '50%', backgroundColor: 'var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--color-bg)' }}>
               <Feather size={10} strokeWidth={2.5} color="#FFF" />
-            </div>
+            </div>}
           </div>
           <div>
             {isMe ? (
@@ -191,10 +206,20 @@ export default function ProfilePage() {
           )
         )}
         {activeTab === 'likes' && (
-          <div style={{ padding: '48px 0', textAlign: 'center' }}>
-            <p className="font-serif" style={{ fontSize: '20px', marginBottom: '8px' }}>No likes yet</p>
-            <p className="text-caption">Posts this user has liked will appear here.</p>
-          </div>
+          likedLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton" style={{ height: '80px', width: '100%', marginBottom: '12px' }} />
+            ))
+          ) : likedPosts.length > 0 ? (
+            likedPosts.map(({ Post, votes, has_voted, comment_count }) => (
+              <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} comment_count={comment_count} onDelete={handleDelete} />
+            ))
+          ) : (
+            <div style={{ padding: '48px 0', textAlign: 'center' }}>
+              <p className="font-serif" style={{ fontSize: '20px', marginBottom: '8px' }}>No likes yet</p>
+              <p className="text-caption">Posts this user has liked will appear here.</p>
+            </div>
+          )
         )}
       </div>
     </div>

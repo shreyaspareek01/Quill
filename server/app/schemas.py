@@ -17,6 +17,8 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = None
     location: Optional[str] = None
     website: Optional[str] = None
+    avatar_url: Optional[str] = None
+    cover_url: Optional[str] = None
 
 class UserResponse(BaseModel):
     id:int 
@@ -26,6 +28,8 @@ class UserResponse(BaseModel):
     bio: Optional[str] = None
     location: Optional[str] = None
     website: Optional[str] = None
+    avatar_url: Optional[str] = None
+    cover_url: Optional[str] = None
     created_at:datetime
     model_config = ConfigDict(from_attributes=True)
     
@@ -93,3 +97,7 @@ class BookmarkResponse(BaseModel):
     user_id: int
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class ReportCreate(BaseModel):
+    post_id: int
+    reason: Optional[str] = None

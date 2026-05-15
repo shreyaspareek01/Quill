@@ -138,9 +138,8 @@ export default function PostDetailPage() {
             </h1>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
-            <div className="avatar avatar-md" onClick={() => navigate(`/profile/${Post.owner_id}`)} style={{ cursor: 'pointer' }}>
-              <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{displayName[0]?.toUpperCase()}</span>
-            </div>
+            <div className="avatar avatar-md" onClick={() => navigate(`/profile/${Post.owner_id}`)} style={{ cursor: 'pointer', background: Post.owner?.avatar_url ? `url(${Post.owner.avatar_url}) center/cover` : undefined }} />
+            
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '16px', fontWeight: 600 }}>{displayName}</span>
@@ -214,11 +213,8 @@ export default function PostDetailPage() {
 
           {user ? (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '24px' }}>
-              <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0 }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                  {(user?.full_name || user?.email || 'U')[0]?.toUpperCase()}
-                </span>
-              </div>
+              <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0, background: user?.avatar_url ? `url(${user.avatar_url}) center/cover` : undefined }} />
+              
               <div style={{ flex: 1 }}>
                 <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
                   placeholder="Write a comment..."
@@ -250,11 +246,8 @@ export default function PostDetailPage() {
             ) : (
               comments.map(c => (
                 <div key={c.id} style={{ display: 'flex', gap: '10px' }}>
-                  <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                      {(c.user?.full_name || c.user?.email || 'U')[0]?.toUpperCase()}
-                    </span>
-                  </div>
+                  <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0, background: c.user?.avatar_url ? `url(${c.user.avatar_url}) center/cover` : undefined }} />
+                  
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600 }}>{c.user?.full_name || c.user?.username || c.user?.email?.split('@')[0] || 'User'}</span>

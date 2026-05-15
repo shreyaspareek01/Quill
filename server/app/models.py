@@ -30,6 +30,8 @@ class User(Base):
     bio = Column(String, nullable=True)
     location = Column(String, nullable=True)
     website = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)
+    cover_url = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True),server_default=text('NOW()'),nullable=False)
 
 class Vote(Base):
@@ -60,3 +62,13 @@ class Bookmark(Base):
     user_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),primary_key=True)
     post_id = Column(Integer,ForeignKey("posts.id",ondelete="CASCADE"),primary_key=True)
     created_at = Column(TIMESTAMP(timezone=True),server_default=text('NOW()'),nullable=False)
+
+class Report(Base):
+    __tablename__ = 'reports'
+    id = Column(Integer, primary_key=True, nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    reason = Column(String, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text('NOW()'), nullable=False)
+    post = relationship("Post")
+    user = relationship("User")

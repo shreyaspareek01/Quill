@@ -17,3 +17,6 @@ export const deletePost = (id) =>
 
 export const getFollowingPosts = (params = {}) =>
   api.get('/posts/following', { params });
+
+export const getLikedPosts = (userId) =>
+  api.get(`/posts/liked/${userId}`);

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Heart, Bookmark, Share2, MoreHorizontal, Feather, Clock } from 'lucide-react';
+import { MessageCircle, Heart, Bookmark, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2 } from 'lucide-react';
 import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark } from '../api/bookmarks';
 import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
+import { deletePost } from '../api/posts';
+import { reportPost } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -93,9 +95,8 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div className="avatar avatar-sm" style={{ width: '36px', height: '36px' }} onClick={e => { e.stopPropagation(); navigate(`/profile/${post.owner_id}`); }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{displayName[0]?.toUpperCase()}</span>
-          </div>
+          <div className="avatar avatar-sm" style={{ width: '36px', height: '36px', background: post.owner?.avatar_url ? `url(${post.owner.avatar_url}) center/cover` : undefined }} onClick={e => { e.stopPropagation(); navigate(`/profile/${post.owner_id}`); }} />
+          
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '14px', fontWeight: 600 }}>{displayName}</span>
@@ -133,18 +134,29 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
               position: 'absolute', top: '100%', right: 0, zIndex: 50,
               backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-lg)',
-              padding: '4px', minWidth: '140px',
-            }}>
-              {isOwner && <button onClick={e => { e.stopPropagation(); navigate(`/posts/${post.id}/edit`); setMenuOpen(false); }}
-                style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'left', fontSize: '13px', borderRadius: 'var(--radius-xs)' }}
+              padding: '4px', minWidth: '160px',
+            }}
+              onClick={e => e.stopPropagation()}
+            >
+              {isOwner && <button onClick={() => { navigate(`/posts/${post.id}/edit`); setMenuOpen(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', textAlign: 'left', fontSize: '13px', borderRadius: 'var(--radius-xs)' }}
                 onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-              >Edit</button>}
-              {isOwner && <button onClick={async (e) => { e.stopPropagation(); setMenuOpen(false); onDelete?.(post.id); }}
-                style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'left', fontSize: '13px', borderRadius: 'var(--radius-xs)', color: 'var(--color-destructive)' }}
+              ><Edit3 size={14} strokeWidth={1.5} /> Edit</button>}
+              {isOwner && <button onClick={async () => {
+                if (!window.confirm('Delete this post?')) return;
+                try { await deletePost(post.id); toast.success('Deleted'); onDelete?.(post.id); } catch { toast.error('Failed'); }
+                setMenuOpen(false);
+              }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', textAlign: 'left', fontSize: '13px', borderRadius: 'var(--radius-xs)', color: 'var(--color-destructive)' }}
                 onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-              >Delete</button>}
+              ><Trash2 size={14} strokeWidth={1.5} /> Delete</button>}
+              <button onClick={async () => { try { await reportPost(post.id); toast.success('Reported'); } catch { toast.error('Already reported'); } setMenuOpen(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', textAlign: 'left', fontSize: '13px', borderRadius: 'var(--radius-xs)', color: 'var(--color-destructive)' }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+              ><Flag size={14} strokeWidth={1.5} /> Report</button>
             </div>
           )}
         </div>

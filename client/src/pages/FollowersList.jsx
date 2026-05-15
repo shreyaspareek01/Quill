@@ -52,9 +52,8 @@ export default function FollowersListPage() {
       ) : (
         users.map(u => (
           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '1px solid var(--color-border)' }}>
-            <div className="avatar avatar-sm" style={{ width: '40px', height: '40px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{(u.full_name || u.email || 'U')[0]?.toUpperCase()}</span>
-            </div>
+            <div className="avatar avatar-sm" style={{ width: '40px', height: '40px', background: u.avatar_url ? `url(${u.avatar_url}) center/cover` : undefined }} />
+            
             <Link to={`/profile/${u.id}`} style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: '14px', fontWeight: 600 }}>{u.full_name || u.username || u.email?.split('@')[0] || 'User'}</div>
               <div className="text-caption" style={{ fontSize: '12px' }}>@{u.username || u.email?.split('@')[0] || 'user'}</div>

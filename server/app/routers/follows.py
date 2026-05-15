@@ -35,14 +35,16 @@ def get_followers(user_id: int, db: Session = Depends(get_db)):
     follows = db.query(models.Follow).filter(models.Follow.following_id == user_id).all()
     user_ids = [f.follower_id for f in follows]
     users = db.query(models.User).filter(models.User.id.in_(user_ids)).all() if user_ids else []
-    return [{"id": u.id, "email": u.email, "username": u.username, "full_name": u.full_name} for u in users]
+    return [{"id": u.id, "email": u.email, "username": u.username, "full_name": u.full_name, "avatar_url": u.avatar_url} for u in users]
+
 
 @router.get("/{user_id}/following", response_model=list[dict])
 def get_following(user_id: int, db: Session = Depends(get_db)):
     follows = db.query(models.Follow).filter(models.Follow.follower_id == user_id).all()
     user_ids = [f.following_id for f in follows]
     users = db.query(models.User).filter(models.User.id.in_(user_ids)).all() if user_ids else []
-    return [{"id": u.id, "email": u.email, "username": u.username, "full_name": u.full_name} for u in users]
+    return [{"id": u.id, "email": u.email, "username": u.username, "full_name": u.full_name, "avatar_url": u.avatar_url} for u in users]
+
 
 @router.get("/{user_id}/status")
 def get_follow_status(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):

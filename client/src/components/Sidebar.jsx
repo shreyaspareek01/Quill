@@ -64,9 +64,8 @@ export default function Sidebar() {
 
       <div style={{ padding: '12px 0 4px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Link to={`/profile/${user?.id}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-          <div className="avatar avatar-sm" style={{ width: '36px', height: '36px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{displayName[0]?.toUpperCase()}</span>
-          </div>
+          <div className="avatar avatar-sm" style={{ width: '36px', height: '36px', background: user?.avatar_url ? `url(${user.avatar_url}) center/cover` : undefined }} />
+          
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '14px', fontWeight: 600, lineHeight: 1.2 }} className="truncate">{displayName}</div>
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }} className="truncate">@{user?.username || displayName.toLowerCase()}</div>

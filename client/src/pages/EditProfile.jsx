@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Camera } from 'lucide-react';
 import { getUser, updateUser } from '../api/users';
+import { uploadAvatar, uploadCover } from '../api/uploads';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -10,9 +11,11 @@ export default function EditProfilePage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [form, setForm] = useState({ full_name: '', username: '', bio: '', location: '', website: '' });
+  const [form, setForm] = useState({ full_name: '', username: '', bio: '', location: '', website: '', avatar_url: '', cover_url: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   useEffect(() => {
     if (!authUser?.id) return;
@@ -23,16 +26,45 @@ export default function EditProfilePage() {
         bio: data.bio || '',
         location: data.location || '',
         website: data.website || '',
+        avatar_url: data.avatar_url || '',
+        cover_url: data.cover_url || '',
       }))
       .catch(() => toast.error('Failed to load profile'))
       .finally(() => setLoading(false));
   }, [authUser?.id, toast]);
 
+  const handleAvatarSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const { data } = await uploadAvatar(file);
+      setForm(p => ({ ...p, avatar_url: data.url }));
+      toast.success('Avatar uploaded');
+    } catch { toast.error('Avatar upload failed'); }
+    finally { setUploadingAvatar(false); }
+  };
+
+  const handleCoverSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const { data } = await uploadCover(file);
+      setForm(p => ({ ...p, cover_url: data.url }));
+      toast.success('Cover image uploaded');
+    } catch { toast.error('Cover upload failed'); }
+    finally { setUploadingCover(false); }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await updateUser(authUser.id, form);
+      const payload = { ...form };
+      if (!payload.avatar_url) delete payload.avatar_url;
+      if (!payload.cover_url) delete payload.cover_url;
+      const { data } = await updateUser(authUser.id, payload);
       login(localStorage.getItem('quill_token'), data);
       toast.success('Profile updated');
       navigate(`/profile/${authUser.id}`);
@@ -53,6 +85,57 @@ export default function EditProfilePage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <label className="text-label" style={{ display: 'block', marginBottom: '6px', fontSize: '10px' }}>Cover Image</label>
+          <div
+            onClick={() => document.getElementById('cover-upload').click()}
+            style={{
+              height: '140px', borderRadius: 'var(--radius-md)', cursor: 'pointer', overflow: 'hidden',
+              background: form.cover_url ? `url(${form.cover_url}) center/cover` : 'linear-gradient(135deg, var(--color-gold-subtle) 0%, var(--color-border) 100%)',
+              border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'opacity var(--duration-fast)',
+            }}
+          >
+            {uploadingCover ? (
+              <Loader2 size={24} strokeWidth={1.5} style={{ color: 'var(--color-text-muted)' }} />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--color-text-muted)', background: 'rgba(0,0,0,0.4)', padding: '8px 16px', borderRadius: 'var(--radius-sm)' }}>
+                <Camera size={20} strokeWidth={1.5} color="#FFF" />
+                <span style={{ fontSize: '12px', color: '#FFF' }}>{form.cover_url ? 'Change cover' : 'Add cover'}</span>
+              </div>
+            )}
+          </div>
+          <input id="cover-upload" type="file" hidden accept="image/*" onChange={handleCoverSelect} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            onClick={() => document.getElementById('avatar-upload').click()}
+            style={{
+              position: 'relative', width: '80px', height: '80px', borderRadius: '50%', cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
+              background: form.avatar_url ? `url(${form.avatar_url}) center/cover` : undefined,
+              backgroundColor: form.avatar_url ? undefined : 'var(--color-border)',
+              border: '2px solid var(--color-border)',
+            }}
+          >
+            {uploadingAvatar ? (
+              <Loader2 size={20} strokeWidth={1.5} style={{ color: 'var(--color-text-muted)' }} />
+            ) : form.avatar_url ? (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity var(--duration-fast)' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+              >
+                <Camera size={18} strokeWidth={1.5} color="#FFF" />
+              </div>
+            ) : null}
+          </div>
+          <input id="avatar-upload" type="file" hidden accept="image/*" onChange={handleAvatarSelect} />
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 600 }}>{(form.full_name || form.username || authUser?.email || 'User').split('@')[0]}</div>
+            <div className="text-caption" style={{ fontSize: '12px', marginTop: '2px' }}>Upload a profile photo</div>
+          </div>
+        </div>
+
         <div>
           <label className="text-label" style={{ display: 'block', marginBottom: '6px', fontSize: '10px' }}>Display Name</label>
           <input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}

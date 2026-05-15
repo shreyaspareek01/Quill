@@ -46,3 +46,39 @@ async def upload_image(
         file.file.close()
 
     return {"image_url": upload_result.get("secure_url")}
+
+@router.post("/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user = Depends(oauth2.get_current_user),
+):
+    if not (settings.cloudinary_cloud_name and settings.cloudinary_api_key and settings.cloudinary_api_secret):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image upload not configured.")
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files are allowed.")
+    cloudinary.config(cloud_name=settings.cloudinary_cloud_name, api_key=settings.cloudinary_api_key, api_secret=settings.cloudinary_api_secret, secure=True)
+    try:
+        upload_result = uploader.upload(file.file, folder=f"quill/avatars/{user.id}", resource_type="image", width=400, height=400, crop="fill")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to upload avatar.")
+    finally:
+        file.file.close()
+    return {"url": upload_result.get("secure_url")}
+
+@router.post("/cover")
+async def upload_cover(
+    file: UploadFile = File(...),
+    user = Depends(oauth2.get_current_user),
+):
+    if not (settings.cloudinary_cloud_name and settings.cloudinary_api_key and settings.cloudinary_api_secret):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Image upload not configured.")
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only image files are allowed.")
+    cloudinary.config(cloud_name=settings.cloudinary_cloud_name, api_key=settings.cloudinary_api_key, api_secret=settings.cloudinary_api_secret, secure=True)
+    try:
+        upload_result = uploader.upload(file.file, folder=f"quill/covers/{user.id}", resource_type="image", width=1200, height=400, crop="fill")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to upload cover.")
+    finally:
+        file.file.close()
+    return {"url": upload_result.get("secure_url")}
