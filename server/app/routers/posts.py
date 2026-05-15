@@ -10,9 +10,9 @@ from typing import Optional
 router = APIRouter(prefix="/posts",tags=["Posts"])
 
 @router.get("/",response_model=list[PostResponseWithVotes])
-async def get_posts(db: Session = Depends(get_db),user: int = Depends(oauth2.get_current_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0),search:Optional[str]=""):
-    # Subquery to check if current user has voted on each post
-    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user.id).subquery()
+async def get_posts(db: Session = Depends(get_db),user: Optional[models.User] = Depends(oauth2.get_optional_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0),search:Optional[str]=""):
+    user_id = user.id if user else -1
+    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
     
     results = db.query(
         models.Post, 
@@ -22,12 +22,12 @@ async def get_posts(db: Session = Depends(get_db),user: int = Depends(oauth2.get
         models.Vote, models.Vote.post_id == models.Post.id, isouter=True
     ).group_by(models.Post.id).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()
     
-    # Map to the format expected by the schema
     return [{"Post": post, "votes": votes, "has_voted": has_voted} for post, votes, has_voted in results]
 
 @router.get("/{id}",response_model=PostResponseWithVotes)
-async def get_post(id:int,db:Session = Depends(get_db),user: int = Depends(oauth2.get_current_user)):
-    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user.id).subquery()
+async def get_post(id:int,db:Session = Depends(get_db),user: Optional[models.User] = Depends(oauth2.get_optional_user)):
+    user_id = user.id if user else -1
+    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
     
     result = db.query(
         models.Post, 

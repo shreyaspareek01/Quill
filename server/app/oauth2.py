@@ -8,6 +8,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.algorithm
@@ -40,3 +41,14 @@ def get_current_user(token:str = Depends(oauth2_scheme),db: Session=Depends(data
     if user is None:
         raise credentials_exception
     return user
+
+def get_optional_user(token:str = Depends(oauth2_scheme_optional),db: Session=Depends(database.get_db)):
+    if token is None:
+        return None
+    try:
+        token_data = verify_access_token(token, HTTPException(status_code=status.HTTP_401_UNAUTHORIZED))
+        if token_data is None or token_data.id is None:
+            return None
+        return db.query(models.User).filter(models.User.id==token_data.id).first()
+    except:
+        return None

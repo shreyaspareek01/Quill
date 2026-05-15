@@ -25,6 +25,11 @@ class User(Base):
     id = Column(Integer,primary_key=True,nullable=False)
     email = Column(String, nullable=False,unique=True)
     password = Column(String,nullable=False)
+    username = Column(String, nullable=True, unique=True)
+    full_name = Column(String, nullable=True)
+    bio = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    website = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True),server_default=text('NOW()'),nullable=False)
 
 class Vote(Base):
@@ -33,3 +38,25 @@ class Vote(Base):
     post_id = Column(Integer,ForeignKey("posts.id",ondelete="CASCADE"),primary_key=True)
     user = relationship("User")
     post = relationship("Post")
+
+class Follow(Base):
+    __tablename__ = 'follows'
+    follower_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),primary_key=True)
+    following_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),primary_key=True)
+    created_at = Column(TIMESTAMP(timezone=True),server_default=text('NOW()'),nullable=False)
+
+class Comment(Base):
+    __tablename__ = 'comments'
+    id = Column(Integer,primary_key=True,nullable=False)
+    content = Column(String,nullable=False)
+    post_id = Column(Integer,ForeignKey("posts.id",ondelete="CASCADE"),nullable=False)
+    user_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True),server_default=text('NOW()'),nullable=False)
+    post = relationship("Post")
+    user = relationship("User")
+
+class Bookmark(Base):
+    __tablename__ = 'bookmarks'
+    user_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),primary_key=True)
+    post_id = Column(Integer,ForeignKey("posts.id",ondelete="CASCADE"),primary_key=True)
+    created_at = Column(TIMESTAMP(timezone=True),server_default=text('NOW()'),nullable=False)

@@ -17,6 +17,12 @@ async def create_user(user:UserCreate,db:Session=Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"User with email {user.email} already exists")
 
+    # Check if username is taken
+    if user.username:
+        existing_username = db.query(models.User).filter(models.User.username == user.username).first()
+        if existing_username:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Username {user.username} is already taken")
+
     hashed_password = utils.hash(user.password)
     user.password=hashed_password
     created_user=models.User(**user.model_dump())
