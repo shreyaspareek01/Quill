@@ -1,62 +1,28 @@
-import { Search, Bell, Sun, Moon } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
-import './TopBar.css';
 
 export default function TopBar() {
   const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (query.trim()) navigate(`/feed?search=${encodeURIComponent(query.trim())}`);
+  };
 
   return (
     <header className="app-topbar">
-      <div className="search-container">
-        <Search size={16} strokeWidth={1.2} className="text-muted" />
-        <input 
-          type="text" 
-          placeholder="Explore the collective..." 
-          className="search-input" 
-        />
-      </div>
-
-      <div className="topbar-actions">
-        <button 
-          onClick={toggleTheme}
-          className="text-muted hover:text-gold transition-colors p-4"
-          title="Toggle theme"
-          style={{ display: 'flex', alignItems: 'center' }}
-        >
-          {theme === 'light' ? <Moon size={20} strokeWidth={1.2} /> : <Sun size={20} strokeWidth={1.2} />}
+      <form className="search-bar" onSubmit={handleSearch}>
+        <Search size={16} strokeWidth={1.5} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+        <input type="text" placeholder="Search posts..." value={query} onChange={e => setQuery(e.target.value)} />
+      </form>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={toggleTheme} className="btn-icon" title="Toggle theme">
+          {theme === 'light' ? <Moon size={18} strokeWidth={1.5} /> : <Sun size={18} strokeWidth={1.5} />}
         </button>
-
-        <button 
-          className="text-muted hover:text-gold transition-colors relative p-4"
-          style={{ display: 'flex', alignItems: 'center' }}
-        >
-          <Bell size={20} strokeWidth={1.2} />
-          <span 
-            className="absolute" 
-            style={{ 
-              top: '4px', 
-              right: '4px', 
-              width: '8px', 
-              height: '8px', 
-              backgroundColor: 'var(--color-gold)', 
-              borderRadius: '50%',
-              border: '2px solid var(--color-bg)'
-            }} 
-          />
-        </button>
-
-        <div 
-          className="user-avatar-sm" 
-          style={{ 
-            width: '32px', 
-            height: '32px', 
-            cursor: 'pointer',
-            border: '1px solid var(--color-border)',
-            marginLeft: 'var(--space-8)'
-          }} 
-        />
       </div>
     </header>
   );

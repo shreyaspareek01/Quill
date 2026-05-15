@@ -1,23 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Feather, ArrowLeft } from 'lucide-react';
-import PageWrapper from '../components/PageWrapper';
-import './NotFound.css';
+import { Feather } from 'lucide-react';
 
 export default function NotFoundPage() {
   return (
-    <PageWrapper>
-      <div className="notfound">
-        <Feather size={40} strokeWidth={1} className="notfound__icon" />
-        <h1 className="notfound__code">404</h1>
-        <h2 className="notfound__title">Page not found</h2>
-        <p className="notfound__sub">
-          The page you're looking for has either moved, or was never written.
-        </p>
-        <Link to="/" className="btn btn-primary notfound__btn">
-          <ArrowLeft size={15} strokeWidth={2} />
-          Go home
-        </Link>
-      </div>
-    </PageWrapper>
+    <div className="fade-in" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center' }}>
+      <Feather size={40} strokeWidth={1.2} style={{ color: 'var(--color-gold)', marginBottom: '24px' }} />
+      <h1 className="font-serif" style={{ fontSize: '48px', fontWeight: 700, marginBottom: '12px' }}>404</h1>
+      <p className="text-caption" style={{ fontSize: '16px', marginBottom: '32px' }}>This page doesn't exist.</p>
+      <Link to="/feed" className="btn btn-primary">Back to Feed</Link>
+    </div>
   );
 }

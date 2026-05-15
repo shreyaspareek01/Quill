@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -12,13 +12,13 @@ import FeedPage      from './pages/Feed';
 import PostDetailPage from './pages/PostDetail';
 import PostFormPage  from './pages/PostForm';
 import ProfilePage   from './pages/Profile';
+import BookmarksPage from './pages/Bookmarks';
+import ExplorePage   from './pages/Explore';
 import NotFoundPage  from './pages/NotFound';
 
 const AuthenticatedLayout = ({ children }) => (
   <ProtectedRoute>
-    <AppShell>
-      {children}
-    </AppShell>
+    <AppShell>{children}</AppShell>
   </ProtectedRoute>
 );
 
@@ -29,29 +29,16 @@ export default function App() {
         <ThemeProvider>
           <ToastProvider>
             <Routes>
-              {/* Public */}
-              <Route path="/"         element={<LandingPage />} />
-              <Route path="/login"    element={<LoginPage />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-
-              {/* Protected */}
-              <Route path="/feed" element={
-                <AuthenticatedLayout><FeedPage /></AuthenticatedLayout>
-              } />
-              <Route path="/posts/new" element={
-                <AuthenticatedLayout><PostFormPage /></AuthenticatedLayout>
-              } />
-              <Route path="/posts/:id" element={
-                <AuthenticatedLayout><PostDetailPage /></AuthenticatedLayout>
-              } />
-              <Route path="/posts/:id/edit" element={
-                <AuthenticatedLayout><PostFormPage /></AuthenticatedLayout>
-              } />
-              <Route path="/profile/:id" element={
-                <AuthenticatedLayout><ProfilePage /></AuthenticatedLayout>
-              } />
-
-              {/* Fallback */}
+              <Route path="/feed" element={<AuthenticatedLayout><FeedPage /></AuthenticatedLayout>} />
+              <Route path="/posts/new" element={<AuthenticatedLayout><PostFormPage /></AuthenticatedLayout>} />
+              <Route path="/posts/:id" element={<AuthenticatedLayout><PostDetailPage /></AuthenticatedLayout>} />
+              <Route path="/posts/:id/edit" element={<AuthenticatedLayout><PostFormPage /></AuthenticatedLayout>} />
+              <Route path="/profile/:id" element={<AuthenticatedLayout><ProfilePage /></AuthenticatedLayout>} />
+              <Route path="/bookmarks" element={<AuthenticatedLayout><BookmarksPage /></AuthenticatedLayout>} />
+              <Route path="/explore" element={<AuthenticatedLayout><ExplorePage /></AuthenticatedLayout>} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </ToastProvider>

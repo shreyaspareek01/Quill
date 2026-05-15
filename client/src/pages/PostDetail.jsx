@@ -1,28 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  ArrowLeft, 
-  MessageCircle, 
-  Repeat, 
-  Heart, 
-  Bookmark, 
-  Share2,
-  Edit2,
-  Trash2,
-  Feather
-} from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Clock, Send } from 'lucide-react';
 import { getPost, deletePost } from '../api/posts';
 import { castVote } from '../api/votes';
+import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
+import { getComments, createComment } from '../api/comments';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import './PostDetail.css';
 
 function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-  });
+  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+function formatDateShort(d) {
+  const date = new Date(d);
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function PostDetailPage() {
@@ -33,66 +29,79 @@ export default function PostDetailPage() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [voteLoading, setVoteLoading] = useState(false);
   const [voted, setVoted] = useState(false);
   const [votes, setVotes] = useState(0);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [voteLoading, setVoteLoading] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
+    (async () => {
       setLoading(true);
       try {
-        const res = await getPost(id);
-        setData(res.data);
-        setVotes(res.data.votes);
-        setVoted(res.data.has_voted);
-      } catch {
-        toast.error('Post not found.');
-        navigate('/feed');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [id, navigate, toast]);
+        const [postRes, commentsRes] = await Promise.all([
+          getPost(id),
+          getComments(id).catch(() => ({ data: [] })),
+        ]);
+        setData(postRes.data);
+        setVotes(postRes.data.votes);
+        setVoted(postRes.data.has_voted);
+        setComments(commentsRes.data || []);
+        if (user) {
+          getBookmarkStatus(id).then(r => setBookmarked(r.data.bookmarked)).catch(() => {});
+        }
+      } catch { toast.error('Post not found'); navigate('/feed'); }
+      finally { setLoading(false); }
+    })();
+  }, [id, user, navigate, toast]);
 
   const handleVote = async () => {
-    if (voteLoading) return;
-    if (!user) {
-      toast.error('Sign in to appreciate this thought.');
-      return;
-    }
+    if (voteLoading || !user) { if (!user) toast.error('Sign in to vote'); return; }
     setVoteLoading(true);
     const dir = voted ? 0 : 1;
     try {
       await castVote(data.Post.id, dir);
       setVoted(!voted);
       setVotes(v => v + (dir === 1 ? 1 : -1));
-    } catch (err) {
-      toast.error('Vote failed.');
-    } finally {
-      setVoteLoading(false);
-    }
+    } catch { toast.error('Vote failed'); }
+    finally { setVoteLoading(false); }
+  };
+
+  const handleBookmark = async () => {
+    if (!user) { toast.error('Sign in to bookmark'); return; }
+    try {
+      if (bookmarked) { await removeBookmark(data.Post.id); setBookmarked(false); toast.success('Bookmark removed'); }
+      else { await bookmarkPost(data.Post.id); setBookmarked(true); toast.success('Bookmarked'); }
+    } catch { toast.error('Action failed'); }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+    if (!window.confirm('Delete this post?')) return;
+    try { await deletePost(data.Post.id); toast.success('Post deleted'); navigate('/feed'); }
+    catch { toast.error('Could not delete'); }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !user) return;
+    setReplyLoading(true);
     try {
-      await deletePost(data.Post.id);
-      toast.success('Post deleted.');
-      navigate('/feed');
-    } catch {
-      toast.error('Could not delete post.');
-    }
+      const { data: newComment } = await createComment({ content: replyText.trim(), post_id: parseInt(id) });
+      setComments(prev => [...prev, newComment]);
+      setReplyText('');
+      toast.success('Reply posted');
+    } catch { toast.error('Reply failed'); }
+    finally { setReplyLoading(false); }
   };
 
   if (loading) {
     return (
-      <div className="post-detail-page fade-in">
-        <div className="post-detail__article">
-          <div className="skeleton" style={{ height: '48px', width: '70%', marginBottom: '32px' }} />
-          <div className="skeleton" style={{ height: '24px', width: '100%', marginBottom: '12px' }} />
-          <div className="skeleton" style={{ height: '24px', width: '90%', marginBottom: '12px' }} />
-        </div>
+      <div className="fade-in">
+        <div className="skeleton" style={{ height: '40px', width: '60%', marginBottom: '24px' }} />
+        <div className="skeleton" style={{ height: '20px', width: '100%', marginBottom: '10px' }} />
+        <div className="skeleton" style={{ height: '20px', width: '90%', marginBottom: '10px' }} />
+        <div className="skeleton" style={{ height: '20px', width: '70%' }} />
       </div>
     );
   }
@@ -100,105 +109,151 @@ export default function PostDetailPage() {
   if (!data) return null;
   const { Post } = data;
   const isOwner = user?.id === Post.owner_id;
-  const username = Post.owner?.email?.split('@')[0] || 'writer';
+  const displayName = Post.owner?.full_name || Post.owner?.username || Post.owner?.email?.split('@')[0] || 'Writer';
+  const username = Post.owner?.username || Post.owner?.email?.split('@')[0] || 'writer';
 
   return (
-    <div className="post-detail-page fade-in">
-      <header className="post-detail__top">
-        <button onClick={() => navigate(-1)} className="btn-back">
-          <ArrowLeft size={18} strokeWidth={1.2} />
-          <span>Back to Collective</span>
-        </button>
-      </header>
+    <div className="fade-in" style={{ paddingBottom: 'var(--space-80)' }}>
+      <button onClick={() => navigate(-1)}
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-muted)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', marginBottom: '32px' }}>
+        <ArrowLeft size={16} strokeWidth={1.5} />
+        <span>Back</span>
+      </button>
 
-      <article className="post-detail__article">
-        <header className="article-header">
+      <article style={{ maxWidth: 'var(--shell-content-max)', margin: '0 auto' }}>
+        <header style={{ marginBottom: '48px' }}>
           {Post.title && (
-            <h1 className="article-title font-serif">{Post.title}</h1>
+            <h1 className="font-serif" style={{ fontSize: '42px', lineHeight: 1.1, letterSpacing: 'var(--ls-tight)', marginBottom: '24px' }}>
+              {Post.title}
+            </h1>
           )}
-          
-          <div className="article-author">
-            <div className="user-avatar-md" style={{ width: '40px', height: '40px' }} />
-            <div className="author-details">
-              <div className="flex items-center gap-8">
-                <span className="author-name font-serif">{username}</span>
-                <Feather size={12} strokeWidth={2} color="var(--color-gold)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '20px', borderBottom: '1px solid var(--color-border)' }}>
+            <div className="avatar avatar-md">
+              <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{displayName[0]?.toUpperCase()}</span>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '16px', fontWeight: 600 }}>{displayName}</span>
+                <Feather size={11} strokeWidth={2} style={{ color: 'var(--color-gold)' }} />
               </div>
-              <span className="text-label" style={{ fontSize: '10px' }}>@{username}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                <span className="text-caption" style={{ fontSize: '12px' }}>@{username}</span>
+                <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>·</span>
+                <span className="text-caption" style={{ fontSize: '12px' }}>{formatDate(Post.created_at)}</span>
+              </div>
             </div>
-            <div className="ml-auto">
-              <span className="text-label" style={{ fontSize: '10px' }}>{formatDate(Post.created_at)}</span>
-            </div>
+            {isOwner && (
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+                <button className="btn-icon" onClick={() => navigate(`/posts/${Post.id}/edit`)} title="Edit">
+                  <Edit2 size={16} strokeWidth={1.5} />
+                </button>
+                <button className="btn-icon" onClick={handleDelete} title="Delete" style={{ color: 'var(--color-destructive)' }}>
+                  <Trash2 size={16} strokeWidth={1.5} />
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
-        <div className="article-content">
-          {Post.content.split('\n').map((para, i) => 
-            para.trim() ? <p key={i}>{para}</p> : <br key={i} />
+        <div style={{ fontSize: '18px', lineHeight: 1.8, color: 'var(--color-text-secondary)', marginBottom: '48px' }}>
+          {Post.content.split('\n').map((para, i) =>
+            para.trim() ? <p key={i} style={{ marginBottom: '1.5em' }}>{para}</p> : <br key={i} />
           )}
         </div>
 
         {Post.image_url && (
-          <div className="article-media">
-            <img src={Post.image_url} alt="" loading="lazy" />
+          <div style={{ margin: '48px 0', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+            <img src={Post.image_url} alt="" loading="lazy" style={{ width: '100%', display: 'block' }} />
           </div>
         )}
 
-        <footer className="article-footer">
-          <div className="article-stats">
-            <div className="stat-item">
-              <span className="stat-num">{votes}</span>
-              <span className="stat-label">Appreciations</span>
+        <footer style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', gap: '32px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 600 }}>{votes}</span>
+              <span className="text-label" style={{ fontSize: '10px' }}>Appreciations</span>
             </div>
-            <div className="stat-item">
-              <span className="stat-num">12</span>
-              <span className="stat-label">Reposts</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 600 }}>{comments.length}</span>
+              <span className="text-label" style={{ fontSize: '10px' }}>Responses</span>
             </div>
           </div>
 
-          <div className="article-actions">
-            <button className="action-btn" onClick={handleVote}>
-              <Heart size={20} strokeWidth={1.1} style={{ color: voted ? 'var(--color-gold)' : 'inherit' }} />
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'center', color: 'var(--color-text-muted)' }}>
+            <button onClick={handleVote} disabled={voteLoading} className="btn-icon"
+              style={{ color: voted ? 'var(--color-gold)' : 'inherit', width: '40px', height: '40px' }}>
+              <Heart size={20} strokeWidth={1.5} fill={voted ? 'var(--color-gold)' : 'none'} />
             </button>
-            <button className="action-btn">
-              <MessageCircle size={20} strokeWidth={1.1} />
+            <button className="btn-icon" style={{ width: '40px', height: '40px' }}>
+              <MessageCircle size={20} strokeWidth={1.5} />
             </button>
-            <button className="action-btn">
-              <Repeat size={20} strokeWidth={1.1} />
+            <button onClick={handleBookmark} className="btn-icon"
+              style={{ color: bookmarked ? 'var(--color-gold)' : 'inherit', width: '40px', height: '40px' }}>
+              <Bookmark size={20} strokeWidth={1.5} fill={bookmarked ? 'var(--color-gold)' : 'none'} />
             </button>
-            <button className="action-btn">
-              <Bookmark size={20} strokeWidth={1.1} />
-            </button>
-            <button className="action-btn" style={{ marginLeft: 'auto' }}>
-              <Share2 size={20} strokeWidth={1.1} />
+            <button className="btn-icon" style={{ marginLeft: 'auto', width: '40px', height: '40px' }}>
+              <Share2 size={20} strokeWidth={1.5} />
             </button>
           </div>
         </footer>
 
-        <section className="article-replies">
-          <h3 className="replies-title text-label">Dialogue</h3>
-          <div className="reply-form">
-            <div className="user-avatar-sm" style={{ width: '28px', height: '28px' }} />
-            <textarea 
-              className="reply-textarea font-serif italic" 
-              placeholder="Join the conversation..." 
-              rows={1}
-            />
-            <button className="btn btn-primary btn-sm">Respond</button>
-          </div>
-          
-          <div className="replies-list">
-            {/* Sample reply for visual style */}
-            <div className="reply-item">
-              <div className="user-avatar-sm" />
-              <div className="reply-body">
-                <header className="reply-header">
-                  <span className="font-serif" style={{ fontSize: '14px' }}>Elena Ferrante</span>
-                  <span className="text-label" style={{ fontSize: '10px', marginLeft: '8px' }}>2h ago</span>
-                </header>
-                <p className="reply-text">This observation on the texture of thought is exactly why I find Quill so necessary.</p>
+        <section style={{ marginTop: '64px' }}>
+          <h3 className="text-label" style={{ marginBottom: '24px', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
+            Responses ({comments.length})
+          </h3>
+
+          {user && (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '32px' }}>
+              <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0 }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                  {(user?.full_name || user?.email || 'U')[0]?.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ flex: 1 }}>
+                <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
+                  placeholder="Write a response..."
+                  rows={2}
+                  style={{
+                    width: '100%', padding: '10px 0', fontSize: '15px', lineHeight: 1.5,
+                    border: 'none', borderBottom: '1px solid var(--color-border-strong)',
+                    resize: 'none', backgroundColor: 'transparent', color: 'var(--color-text-primary)',
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                  <button onClick={handleReply} disabled={replyLoading || !replyText.trim()}
+                    className="btn btn-primary btn-sm"
+                    style={{ opacity: !replyText.trim() ? 0.5 : 1 }}>
+                    <Send size={14} strokeWidth={1.5} />
+                    <span>Respond</span>
+                  </button>
+                </div>
               </div>
             </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {comments.length === 0 ? (
+              <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                <p className="text-caption" style={{ fontSize: '14px' }}>No responses yet. Start the conversation.</p>
+              </div>
+            ) : (
+              comments.map(c => (
+                <div key={c.id} style={{ display: 'flex', gap: '12px' }}>
+                  <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0 }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                      {(c.user?.full_name || c.user?.email || 'U')[0]?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600 }}>{c.user?.full_name || c.user?.username || c.user?.email?.split('@')[0] || 'Writer'}</span>
+                      <span className="text-caption" style={{ fontSize: '11px' }}>· {formatDateShort(c.created_at)}</span>
+                    </div>
+                    <p style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>{c.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </article>

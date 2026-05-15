@@ -1,67 +1,55 @@
-import { Link } from 'react-router-dom';
-import './RightSidebar.css';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getPosts } from '../api/posts';
 
 export default function RightSidebar() {
-  const trends = [
-    { topic: 'The Future of AI', category: 'Technology', posts: '1.2k' },
-    { topic: 'Stoic Resilience', category: 'Philosophy', posts: '852' },
-    { topic: 'Minimalist Design', category: 'Design', posts: '2.4k' },
-    { topic: 'Post-Digital Age', category: 'Culture', posts: '640' },
-  ];
+  const navigate = useNavigate();
+  const [trendingPosts, setTrendingPosts] = useState([]);
 
-  const suggestedWriters = [
-    { name: 'Elena Ferrante', bio: 'Novelist & Essayist' },
-    { name: 'Ta-Nehisi Coates', bio: 'Writer & Journalist' },
-    { name: 'Zadie Smith', bio: 'Literary Critic' },
-  ];
+  useEffect(() => {
+    getPosts({ limit: 5 }).then(({ data }) => setTrendingPosts(data)).catch(() => {});
+  }, []);
 
   return (
     <aside className="app-sidebar">
-      <section className="sidebar-section">
-        <h2 className="sidebar-section-title">Trending Insights</h2>
-        <div className="flex flex-col">
-          {trends.map((item, i) => (
-            <div key={i} className="trend-item group cursor-pointer">
-              <span className="text-label" style={{ fontSize: '9px', color: 'var(--color-gold)' }}>{item.category}</span>
-              <p className="font-serif trend-topic" style={{ fontSize: '16px', color: 'var(--color-text-primary)' }}>{item.topic}</p>
-              <p className="text-caption" style={{ fontSize: '12px' }}>{item.posts} readers</p>
+      <section style={{ marginBottom: 'var(--space-48)' }}>
+        <h3 className="text-label" style={{ marginBottom: 'var(--space-20)' }}>Trending</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {trendingPosts.slice(0, 5).map(({ Post, votes }) => (
+            <div key={Post.id}
+              onClick={() => navigate(`/posts/${Post.id}`)}
+              style={{
+                padding: '12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                transition: 'background-color var(--duration-fast) var(--ease-out)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <p className="font-serif" style={{ fontSize: '14px', fontWeight: 600, lineHeight: 1.3, marginBottom: '4px' }}>
+                {Post.title.length > 50 ? Post.title.slice(0, 50) + '...' : Post.title}
+              </p>
+              <span className="text-caption" style={{ fontSize: '11px' }}>{votes} appreciations</span>
             </div>
           ))}
+          {trendingPosts.length === 0 && (
+            <p className="text-caption" style={{ padding: '12px 0' }}>No posts yet</p>
+          )}
         </div>
-        <Link to="/explore" className="sidebar-link">
-          Explore all trends
-        </Link>
       </section>
 
-      <section className="sidebar-section" style={{ marginTop: 'var(--space-64)' }}>
-        <h2 className="sidebar-section-title">Writers to Follow</h2>
-        <div className="flex flex-col">
-          {suggestedWriters.map((item, i) => (
-            <div key={i} className="writer-item">
-              <div className="user-avatar-md" style={{ width: '40px', height: '40px' }} />
-              <div className="writer-info">
-                <p className="font-serif writer-name truncate">{item.name}</p>
-                <p className="writer-bio truncate">{item.bio}</p>
-              </div>
-              <button className="btn-follow">
-                Follow
-              </button>
-            </div>
-          ))}
+      <section>
+        <h3 className="text-label" style={{ marginBottom: 'var(--space-20)' }}>About</h3>
+        <p className="text-caption" style={{ lineHeight: 1.6, marginBottom: 'var(--space-16)' }}>
+          A refined space for writing and sharing ideas.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
+          <span>© 2026 Quill</span>
+          <span>·</span>
+          <span>Privacy</span>
+          <span>·</span>
+          <span>Terms</span>
         </div>
-        <Link to="/explore/writers" className="sidebar-link">
-          Discover more writers
-        </Link>
       </section>
-
-      <footer style={{ marginTop: 'var(--space-80)', paddingTop: 'var(--space-24)', borderTop: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: '11px' }}>
-        <div className="flex flex-wrap gap-16">
-          <Link to="/about" className="hover:text-primary transition-colors">About</Link>
-          <Link to="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
-          <Link to="/terms" className="hover:text-primary transition-colors">Terms</Link>
-          <span style={{ marginLeft: 'auto' }}>© 2026 Quill</span>
-        </div>
-      </footer>
     </aside>
   );
 }

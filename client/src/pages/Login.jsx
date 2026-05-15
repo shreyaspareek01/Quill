@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Feather, Globe, Code } from 'lucide-react';
+import { Feather } from 'lucide-react';
 import { loginUser } from '../api/auth';
-import { getUsers } from '../api/users';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import './AuthPage.css';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -16,21 +14,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    setError('');
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
       const { data } = await loginUser(form);
-      const usersRes = await getUsers();
-      const currentUser = usersRes.data.find(u => u.email === form.email);
-      login(data.access_token, currentUser || { email: form.email });
-      toast.success('Welcome back to Quill');
+      login(data.access_token, data.user);
+      toast.success('Welcome back');
       navigate('/feed');
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid credentials');
@@ -40,86 +31,39 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="auth-split-layout fade-in">
-      <div className="auth-split__left">
-        <Link to="/" className="auth-split__logo">
-          <Feather size={28} strokeWidth={1.5} color="var(--color-gold)" />
-          <span>Quill</span>
-        </Link>
-        <div className="auth-split__quote-wrap">
-          <blockquote className="auth-split__quote">
-            "Every great idea starts as a sentence."
-          </blockquote>
-          <cite className="auth-split__cite">— The Art of Writing</cite>
+    <div className="fade-in" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 24px' }}>
+      <div style={{ width: '100%', maxWidth: '400px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
+            <Feather size={24} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
+            <span className="font-serif" style={{ fontSize: '24px', fontWeight: 700 }}>Quill</span>
+          </Link>
+          <h1 className="font-serif" style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px' }}>Welcome back</h1>
+          <p className="text-caption">Sign in to continue writing.</p>
         </div>
-        <div className="auth-split__texture" />
-      </div>
 
-      <div className="auth-split__right">
-        <div className="auth-split__form-container">
-          <header className="auth-split__header">
-            <h1 className="auth-split__title">Sign in</h1>
-            <p className="auth-split__subtitle">Reclaim your refined space for writing.</p>
-          </header>
-
-          <div className="auth-social-buttons">
-            <button className="auth-social-btn">
-              <Globe size={18} strokeWidth={1.2} />
-              <span>Continue with Google</span>
-            </button>
-            <button className="auth-social-btn">
-              <Code size={18} strokeWidth={1.2} />
-              <span>Continue with Github</span>
-            </button>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label className="text-label" style={{ display: 'block', marginBottom: '6px', fontSize: '10px' }}>Email</label>
+            <input name="email" type="email" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="you@example.com" required
+              style={{ width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid var(--color-border-strong)', fontSize: '16px', backgroundColor: 'transparent', color: 'var(--color-text-primary)' }} />
           </div>
-
-          <div className="auth-divider">
-            <span className="text-label">or</span>
+          <div>
+            <label className="text-label" style={{ display: 'block', marginBottom: '6px', fontSize: '10px' }}>Password</label>
+            <input name="password" type="password" value={form.password} onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
+              placeholder="Your password" required
+              style={{ width: '100%', padding: '12px 0', border: 'none', borderBottom: '1px solid var(--color-border-strong)', fontSize: '16px', backgroundColor: 'transparent', color: 'var(--color-text-primary)' }} />
           </div>
+          {error && <p style={{ fontSize: '13px', color: 'var(--color-destructive)' }}>{error}</p>}
+          <button type="submit" disabled={loading} className="btn btn-primary" style={{ width: '100%', padding: '14px', marginTop: '8px' }}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
 
-          <form onSubmit={handleSubmit} className="auth-split__form">
-            <div className="auth-input-field">
-              <label>Email address</label>
-              <input
-                name="email"
-                type="email"
-                className="auth-input"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="auth-input-field">
-              <label>Password</label>
-              <input
-                name="password"
-                type="password"
-                className="auth-input"
-                placeholder="Your password"
-                value={form.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            {error && <p className="text-caption" style={{ color: 'var(--color-destructive)' }}>{error}</p>}
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-              style={{ marginTop: 'var(--space-12)' }}
-            >
-              {loading ? 'Authenticating...' : 'Sign in to Quill'}
-            </button>
-          </form>
-
-          <p className="text-caption" style={{ textAlign: 'center' }}>
-            New to Quill? <Link to="/register" className="link-gold">Create an account</Link>
-          </p>
-        </div>
+        <p className="text-caption" style={{ textAlign: 'center', marginTop: '24px' }}>
+          New to Quill? <Link to="/register" style={{ color: 'var(--color-gold)', fontWeight: 600 }}>Create an account</Link>
+        </p>
       </div>
     </div>
   );
