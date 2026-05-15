@@ -29,6 +29,7 @@ server/  – FastAPI backend
 - `comments` – reply to posts
 - `bookmarks` – save posts
 - `reports` – flag inappropriate content
+- `reposts` – share others' posts to your profile
 
 ### API Endpoints
 | Method | Endpoint | Description |
@@ -38,6 +39,7 @@ server/  – FastAPI backend
 | GET/PUT | `/users/{id}` | Read / update profile |
 | GET/POST/PUT/DELETE | `/posts/` | CRUD posts |
 | GET | `/posts/following` | Feed from followed users |
+| GET | `/posts/user/{user_id}` | User's own posts |
 | GET | `/posts/liked/{user_id}` | Posts a user has liked |
 | GET | `/posts/{id}` | Single post with votes |
 | POST | `/vote/` | Cast or remove vote |
@@ -52,6 +54,8 @@ server/  – FastAPI backend
 | POST | `/uploads/image` | Upload post image to Cloudinary |
 | POST | `/uploads/avatar` | Upload avatar (400×400 crop) |
 | POST | `/uploads/cover` | Upload cover (1200×400 crop) |
+| POST/DELETE | `/reposts/{post_id}` | Repost / undo repost |
+| GET | `/reposts/{user_id}` | User's reposted posts |
 
 ### Local Setup
 
@@ -96,7 +100,7 @@ uvicorn app.main:app --reload
 - `/posts/:id` – Post detail with comments, share, vote, bookmark
 - `/posts/new` – Create post (with Cloudinary image upload)
 - `/posts/:id/edit` – Edit post
-- `/profile/:id` – Profile with cover, avatar, posts/likes tabs, follow
+- `/profile/:id` – Profile with cover, avatar, posts/reposts tabs, follow
 - `/profile/:id/followers` / `/profile/:id/following` – User lists
 - `/bookmarks` – Saved posts
 - `/settings/edit` – Edit profile (avatar, cover, bio, links)

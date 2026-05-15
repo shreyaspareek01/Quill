@@ -78,8 +78,8 @@ export default function FeedPage() {
             </p>
           </div>
         ) : (
-          posts.map(({ Post, votes, has_voted, comment_count }) => (
-            <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} comment_count={comment_count} onDelete={handleDelete} />
+          posts.map(({ Post, votes, has_voted, has_reposted, comment_count, repost_count }) => (
+            <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} hasReposted={has_reposted} comment_count={comment_count} repost_count={repost_count} onDelete={handleDelete} />
           ))
         )}
       </div>

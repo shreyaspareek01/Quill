@@ -44,8 +44,8 @@ export default function ExplorePage() {
           <p className="text-caption">Posts from everyone will appear here.</p>
         </div>
       ) : (
-        posts.map(({ Post, votes, has_voted }) => (
-          <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} onDelete={handleDelete} />
+        posts.map(({ Post, votes, has_voted, has_reposted, comment_count, repost_count }) => (
+          <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} hasReposted={has_reposted} comment_count={comment_count} repost_count={repost_count} onDelete={handleDelete} />
         ))
       )}
     </div>

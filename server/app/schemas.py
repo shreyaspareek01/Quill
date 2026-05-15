@@ -58,7 +58,9 @@ class PostResponseWithVotes(BaseModel):
     Post:PostResponse
     votes: int
     has_voted: bool = False
+    has_reposted: bool = False
     comment_count: int = 0
+    repost_count: int = 0
     model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
@@ -101,3 +103,9 @@ class BookmarkResponse(BaseModel):
 class ReportCreate(BaseModel):
     post_id: int
     reason: Optional[str] = None
+
+class RepostResponse(BaseModel):
+    post_id: int
+    user_id: int
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)

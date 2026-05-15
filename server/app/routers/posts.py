@@ -9,93 +9,70 @@ from typing import Optional
 
 router = APIRouter(prefix="/posts",tags=["Posts"])
 
-@router.get("/",response_model=list[PostResponseWithVotes])
-async def get_posts(db: Session = Depends(get_db),user: Optional[models.User] = Depends(oauth2.get_optional_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0),search:Optional[str]=""):
-    user_id = user.id if user else -1
+def _post_query_base(db, user_id):
     voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
-    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
-    
-    results = db.query(
+    reposted_subquery = db.query(models.Repost.post_id).filter(models.Repost.user_id == user_id).subquery()
+    comment_subquery = db.query(func.count(models.Comment.id)).filter(models.Comment.post_id == models.Post.id).correlate(models.Post).scalar_subquery()
+    repost_subquery = db.query(func.count(models.Repost.post_id)).filter(models.Repost.post_id == models.Post.id).correlate(models.Post).scalar_subquery()
+    base = db.query(
         models.Post, 
         func.count(models.Vote.post_id).label("votes"),
         models.Post.id.in_(voted_subquery).label("has_voted"),
-        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
+        models.Post.id.in_(reposted_subquery).label("has_reposted"),
+        func.coalesce(comment_subquery, 0).label("comment_count"),
+        func.coalesce(repost_subquery, 0).label("repost_count")
     ).join(
         models.Vote, models.Vote.post_id == models.Post.id, isouter=True
-    ).join(
-        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
-    ).group_by(models.Post.id, comment_subquery.c.cnt).filter(models.Post.title.contains(search), models.Post.owner_id != user_id).limit(limit).offset(skip).all()
-    
-    return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
+    )
+    return base
 
-@router.get("/liked/{user_id}",response_model=list[PostResponseWithVotes])
+def _format_results(results):
+    return [{"Post": p, "votes": v, "has_voted": h, "has_reposted": hr, "comment_count": c, "repost_count": r} for p, v, h, hr, c, r in results]
+
+@router.get("/",response_model=list[PostResponseWithVotes])
+async def get_posts(db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user), limit: int = Query(10, ge=1, le=100), skip: int = Query(0, ge=0), search: Optional[str] = ""):
+    user_id = user.id if user else -1
+    results = _post_query_base(db, user_id).filter(
+        models.Post.title.contains(search), models.Post.owner_id != user_id
+    ).group_by(models.Post.id).limit(limit).offset(skip).all()
+    return _format_results(results)
+
+@router.get("/user/{user_id}", response_model=list[PostResponseWithVotes])
+async def get_user_posts(user_id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user), limit: int = Query(50, ge=1, le=100), skip: int = Query(0, ge=0)):
+    current_user_id = user.id if user else -1
+    results = _post_query_base(db, current_user_id).filter(
+        models.Post.owner_id == user_id
+    ).group_by(models.Post.id).limit(limit).offset(skip).all()
+    return _format_results(results)
+
+@router.get("/liked/{user_id}", response_model=list[PostResponseWithVotes])
 async def get_liked_posts(user_id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user)):
     current_user_id = user.id if user else -1
-    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == current_user_id).subquery()
-    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
-    
     liked_post_ids = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
-    
-    results = db.query(
-        models.Post, 
-        func.count(models.Vote.post_id).label("votes"),
-        models.Post.id.in_(voted_subquery).label("has_voted"),
-        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
-    ).join(
-        models.Vote, models.Vote.post_id == models.Post.id, isouter=True
-    ).join(
-        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
-    ).filter(models.Post.id.in_(liked_post_ids)).group_by(models.Post.id, comment_subquery.c.cnt).all()
-    
-    return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
+    results = _post_query_base(db, current_user_id).filter(
+        models.Post.id.in_(liked_post_ids)
+    ).group_by(models.Post.id).all()
+    return _format_results(results)
 
-@router.get("/following",response_model=list[PostResponseWithVotes])
-async def get_following_posts(db: Session = Depends(get_db),user: models.User = Depends(oauth2.get_current_user),limit:int=Query(10, ge=1, le=100),skip:int=Query(0, ge=0)):
+@router.get("/following", response_model=list[PostResponseWithVotes])
+async def get_following_posts(db: Session = Depends(get_db), user: models.User = Depends(oauth2.get_current_user), limit: int = Query(10, ge=1, le=100), skip: int = Query(0, ge=0)):
     followed_ids = db.query(models.Follow.following_id).filter(models.Follow.follower_id == user.id).subquery()
-    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user.id).subquery()
-    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
-    
-    results = db.query(
-        models.Post, 
-        func.count(models.Vote.post_id).label("votes"),
-        models.Post.id.in_(voted_subquery).label("has_voted"),
-        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
-    ).join(
-        models.Vote, models.Vote.post_id == models.Post.id, isouter=True
-    ).join(
-        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
-    ).filter(models.Post.owner_id.in_(followed_ids)).group_by(models.Post.id, comment_subquery.c.cnt).limit(limit).offset(skip).all()
-    
-    return [{"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": cc} for post, votes, has_voted, cc in results]
+    results = _post_query_base(db, user.id).filter(
+        models.Post.owner_id.in_(followed_ids)
+    ).group_by(models.Post.id).limit(limit).offset(skip).all()
+    return _format_results(results)
 
-@router.get("/{id}",response_model=PostResponseWithVotes)
-async def get_post(id:int,db:Session = Depends(get_db),user: Optional[models.User] = Depends(oauth2.get_optional_user)):
+@router.get("/{id}", response_model=PostResponseWithVotes)
+async def get_post(id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user)):
     user_id = user.id if user else -1
-    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
-    comment_subquery = db.query(models.Comment.post_id, func.count(models.Comment.id).label("cnt")).group_by(models.Comment.post_id).subquery()
-    
-    result = db.query(
-        models.Post, 
-        func.count(models.Vote.post_id).label("votes"),
-        models.Post.id.in_(voted_subquery).label("has_voted"),
-        func.coalesce(comment_subquery.c.cnt, 0).label("comment_count")
-    ).join(
-        models.Vote, models.Vote.post_id == models.Post.id, isouter=True
-    ).join(
-        comment_subquery, comment_subquery.c.post_id == models.Post.id, isouter=True
-    ).group_by(models.Post.id, comment_subquery.c.cnt).filter(models.Post.id==id).first()
-    
+    result = _post_query_base(db, user_id).filter(models.Post.id == id).group_by(models.Post.id).first()
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Post with id:{id} not found!")
-    
-    post, votes, has_voted, comment_count = result
-    return {"Post": post, "votes": votes, "has_voted": has_voted, "comment_count": comment_count}
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id:{id} not found!")
+    p, v, h, hr, c, r = result
+    return {"Post": p, "votes": v, "has_voted": h, "has_reposted": hr, "comment_count": c, "repost_count": r}
 
 @router.post("/",status_code=status.HTTP_201_CREATED,response_model=PostResponse)
 async def create_post(post:PostCreate,db:Session = Depends(get_db),user: int = Depends(oauth2.get_current_user)):
-    # cursor.execute("""INSERT INTO posts (title,content,published) VALUES (%s,%s,%s) RETURNING *""",(post.title,post.content,post.published))
-    # created_post=cursor.fetchone()
-    # conn.commit()
     new_post = models.Post(owner_id=user.id, **post.model_dump());
     db.add(new_post)
     db.commit()
@@ -104,34 +81,24 @@ async def create_post(post:PostCreate,db:Session = Depends(get_db),user: int = D
 
 @router.delete("/{id}",status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(id:int,db:Session=Depends(get_db),user: int = Depends(oauth2.get_current_user)):
-    # cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING *""",(id,))
-    # deleted_post = cursor.fetchone()
     post_query = db.query(models.Post).filter(models.Post.id==id)
     post = post_query.first()
-
     if post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Post with id: {id} not found!")
-
     if post.owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail=f"Not authorized to perform the requested action")
-    # conn.commit()
     post_query.delete(synchronize_session=False)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
    
 @router.put("/{id}",response_model=PostResponse)
 async def update_post(id:int, post:PostCreate,db:Session=Depends(get_db),user:int = Depends(oauth2.get_current_user)):
-    # cursor.execute("""UPDATE posts SET title=%s,content=%s,published=%s WHERE id=%s RETURNING *""",(post.title,post.content,post.published,id,))
-    # updated_post=cursor.fetchone()
-
     post_query = db.query(models.Post).filter(models.Post.id==id)
     db_post = post_query.first()
     if db_post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Post with id: {id} not found!")
-    # conn.commit()
     if db_post.owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail=f"Not authorized to perform the requested action")
-        
     post_query.update(post.model_dump(),synchronize_session=False)
     db.commit()
     return post_query.first()

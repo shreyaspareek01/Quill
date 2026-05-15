@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, Link as LinkIcon, Calendar, Feather, ArrowLeft } from 'lucide-react';
 import { getUser } from '../api/users';
-import { getPosts, getLikedPosts } from '../api/posts';
+import { getUserPosts } from '../api/posts';
+import { getUserReposts } from '../api/reposts';
 import { getFollowStatus, followUser, unfollowUser } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -20,9 +21,9 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [likedPosts, setLikedPosts] = useState([]);
+  const [reposts, setReposts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [likedLoading, setLikedLoading] = useState(false);
+  const [repostLoading, setRepostLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
   const [followStatus, setFollowStatus] = useState({ is_following: false, followers_count: 0, following_count: 0 });
   const [followLoading, setFollowLoading] = useState(false);
@@ -33,11 +34,10 @@ export default function ProfilePage() {
       try {
         const [userRes, postsRes] = await Promise.all([
           getUser(id),
-          getPosts({ limit: 50 }),
+          getUserPosts(parseInt(id), { limit: 50 }),
         ]);
         setProfile(userRes.data);
-        const userPosts = postsRes.data.filter(p => p.Post.owner_id === parseInt(id));
-        setPosts(userPosts);
+        setPosts(postsRes.data);
         if (me) {
           getFollowStatus(id).then(r => setFollowStatus(r.data)).catch(() => {});
         }
@@ -47,20 +47,20 @@ export default function ProfilePage() {
   }, [id, me, toast]);
 
   useEffect(() => {
-    if (activeTab !== 'likes' || likedPosts.length > 0 || !id) return;
+    if (activeTab !== 'reposts' || reposts.length > 0 || !id) return;
     (async () => {
-      setLikedLoading(true);
+      setRepostLoading(true);
       try {
-        const { data } = await getLikedPosts(parseInt(id));
-        setLikedPosts(data);
+        const { data } = await getUserReposts(parseInt(id));
+        setReposts(data);
       } catch {}
-      finally { setLikedLoading(false); }
+      finally { setRepostLoading(false); }
     })();
-  }, [activeTab, id, likedPosts.length]);
+  }, [activeTab, id, reposts.length]);
 
   const handleDelete = (postId) => {
     setPosts(prev => prev.filter(p => p.Post.id !== postId));
-    setLikedPosts(prev => prev.filter(p => p.Post.id !== postId));
+    setReposts(prev => prev.filter(p => p.Post.id !== postId));
   };
 
   const handleFollow = async () => {
@@ -178,7 +178,7 @@ export default function ProfilePage() {
       </div>
 
       <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid var(--color-border)', marginBottom: '8px' }}>
-        {['posts', 'likes'].map(tab => (
+        {['posts', 'reposts'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{
               padding: '12px 0', fontSize: '13px', fontWeight: activeTab === tab ? 600 : 500,
@@ -186,7 +186,7 @@ export default function ProfilePage() {
               position: 'relative', textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)',
               transition: 'color var(--duration-fast) var(--ease-out)',
             }}>
-            {tab === 'posts' ? 'Posts' : 'Likes'}
+            {tab === 'posts' ? 'Posts' : 'Reposts'}
             {activeTab === tab && <div style={{ position: 'absolute', bottom: -1, left: 0, right: 0, height: 2, backgroundColor: 'var(--color-gold)' }} />}
           </button>
         ))}
@@ -195,8 +195,8 @@ export default function ProfilePage() {
       <div>
         {activeTab === 'posts' && (
           posts.length > 0 ? (
-            posts.map(({ Post, votes, has_voted, comment_count }) => (
-              <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} comment_count={comment_count} onDelete={handleDelete} />
+            posts.map(({ Post, votes, has_voted, has_reposted, comment_count, repost_count }) => (
+              <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} hasReposted={has_reposted} comment_count={comment_count} repost_count={repost_count} onDelete={handleDelete} />
             ))
           ) : (
             <div style={{ padding: '48px 0', textAlign: 'center' }}>
@@ -205,19 +205,19 @@ export default function ProfilePage() {
             </div>
           )
         )}
-        {activeTab === 'likes' && (
-          likedLoading ? (
+        {activeTab === 'reposts' && (
+          repostLoading ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="skeleton" style={{ height: '80px', width: '100%', marginBottom: '12px' }} />
             ))
-          ) : likedPosts.length > 0 ? (
-            likedPosts.map(({ Post, votes, has_voted, comment_count }) => (
-              <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} comment_count={comment_count} onDelete={handleDelete} />
+          ) : reposts.length > 0 ? (
+            reposts.map(({ Post, votes, has_voted, has_reposted, comment_count, repost_count }) => (
+              <PostCard key={Post.id} post={Post} votes={votes} hasVoted={has_voted} hasReposted={has_reposted} comment_count={comment_count} repost_count={repost_count} onDelete={handleDelete} />
             ))
           ) : (
             <div style={{ padding: '48px 0', textAlign: 'center' }}>
-              <p className="font-serif" style={{ fontSize: '20px', marginBottom: '8px' }}>No likes yet</p>
-              <p className="text-caption">Posts this user has liked will appear here.</p>
+              <p className="font-serif" style={{ fontSize: '20px', marginBottom: '8px' }}>No reposts yet</p>
+              <p className="text-caption">Posts this user has reposted will appear here.</p>
             </div>
           )
         )}

@@ -72,3 +72,11 @@ class Report(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=text('NOW()'), nullable=False)
     post = relationship("Post")
     user = relationship("User")
+
+class Repost(Base):
+    __tablename__ = 'reposts'
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text('NOW()'), nullable=False)
+    user = relationship("User")
+    post = relationship("Post")

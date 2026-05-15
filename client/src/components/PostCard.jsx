@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Heart, Bookmark, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2 } from 'lucide-react';
+import { MessageCircle, Heart, Bookmark, Repeat, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2 } from 'lucide-react';
 import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark } from '../api/bookmarks';
 import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
 import { deletePost } from '../api/posts';
 import { reportPost } from '../api/reports';
+import { repostPost, undoRepost } from '../api/reposts';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -19,7 +20,7 @@ function formatDate(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function PostCard({ post, votes: initialVotes, hasVoted: initialVoted, comment_count: initialComments, onDelete, onFollowChange }) {
+export default function PostCard({ post, votes: initialVotes, hasVoted: initialVoted, hasReposted: initialReposted, comment_count: initialComments, repost_count: initialReposts, onDelete, onFollowChange }) {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -29,6 +30,8 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   const [votes, setVotes] = useState(initialVotes || 0);
   const [voted, setVoted] = useState(initialVoted || false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [reposted, setReposted] = useState(initialReposted || false);
+  const [repostCount, setRepostCount] = useState(initialReposts || 0);
   const [following, setFollowing] = useState(false);
   const [voteLoading, setVoteLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,6 +63,15 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
     try {
       if (bookmarked) { await removeBookmark(post.id); setBookmarked(false); toast.success('Removed'); }
       else { await bookmarkPost(post.id); setBookmarked(true); toast.success('Saved'); }
+    } catch { toast.error('Failed'); }
+  };
+
+  const handleRepost = async (e) => {
+    e.stopPropagation();
+    if (!user) { toast.error('Sign in to repost'); return; }
+    try {
+      if (reposted) { await undoRepost(post.id); setReposted(false); setRepostCount(c => c - 1); }
+      else { await repostPost(post.id); setReposted(true); setRepostCount(c => c + 1); toast.success('Reposted'); }
     } catch { toast.error('Failed'); }
   };
 
@@ -197,6 +209,11 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
           <button onClick={handleBookmark}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: bookmarked ? 'var(--color-gold)' : 'var(--color-text-muted)' }}>
             <Bookmark size={16} strokeWidth={1.5} fill={bookmarked ? 'var(--color-gold)' : 'none'} />
+          </button>
+          <button onClick={handleRepost}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: reposted ? 'var(--color-gold)' : 'var(--color-text-muted)' }}>
+            <Repeat size={16} strokeWidth={1.5} />
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{repostCount}</span>
           </button>
           <button onClick={handleShare} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
             <Share2 size={16} strokeWidth={1.5} />
