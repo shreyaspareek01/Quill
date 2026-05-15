@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Heart, Bookmark, Share2, MoreHorizontal, Feather, Clock } from 'lucide-react';
 import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark } from '../api/bookmarks';
-import { followUser, unfollowUser } from '../api/follows';
+import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -22,6 +22,8 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   const toast = useToast();
   const navigate = useNavigate();
 
+  const isOwner = user?.id === post.owner_id;
+
   const [votes, setVotes] = useState(initialVotes || 0);
   const [voted, setVoted] = useState(initialVoted || false);
   const [bookmarked, setBookmarked] = useState(false);
@@ -29,7 +31,11 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   const [voteLoading, setVoteLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const isOwner = user?.id === post.owner_id;
+  useEffect(() => {
+    if (user && !isOwner) {
+      getFollowStatus(post.owner_id).then(r => setFollowing(r.data.is_following)).catch(() => {});
+    }
+  }, [user, post.owner_id, isOwner]);
   const displayName = post.owner?.full_name || post.owner?.username || post.owner?.email?.split('@')[0] || 'User';
   const username = post.owner?.username || post.owner?.email?.split('@')[0] || 'user';
 

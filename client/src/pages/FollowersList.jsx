@@ -1,30 +1,31 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, UserCheck, UserPlus } from 'lucide-react';
-import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../api/axios';
 
 export default function FollowersListPage() {
-  const { id, type } = useParams();
+  const { id } = useParams();
+  const location = useLocation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const isFollowers = type === 'followers';
+  const isFollowers = location.pathname.endsWith('/followers');
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
+        const type = isFollowers ? 'followers' : 'following';
         const { data } = await api.get(`/follows/${id}/${type}`);
         setUsers(data);
       } catch { toast.error('Failed to load'); }
       finally { setLoading(false); }
     })();
-  }, [id, type, toast]);
+  }, [id, isFollowers, toast]);
 
   return (
     <div className="fade-in" style={{ maxWidth: '500px', margin: '0 auto' }}>
