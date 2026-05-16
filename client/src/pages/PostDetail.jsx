@@ -133,7 +133,7 @@ export default function PostDetailPage() {
       <article style={{ maxWidth: 'var(--shell-content-max)', margin: '0 auto' }}>
         <header style={{ marginBottom: '32px' }}>
           {Post.title && (
-            <h1 className="font-serif" style={{ fontSize: '36px', lineHeight: 1.15, letterSpacing: 'var(--ls-tight)', marginBottom: '20px' }}>
+            <h1 className="font-serif" style={{ fontSize: 'var(--post-title-size)', lineHeight: 1.15, letterSpacing: 'var(--ls-tight)', marginBottom: '20px' }}>
               {Post.title}
             </h1>
           )}
@@ -164,7 +164,7 @@ export default function PostDetailPage() {
           </div>
         </header>
 
-        <div style={{ fontSize: '17px', lineHeight: 1.8, color: 'var(--color-text-secondary)', marginBottom: '40px' }}>
+        <div style={{ fontSize: 'var(--post-content-size)', lineHeight: 1.8, color: 'var(--color-text-secondary)', marginBottom: '40px' }}>
           {Post.content.split('\n').map((para, i) =>
             para.trim() ? <p key={i} style={{ marginBottom: '1.5em' }}>{para}</p> : <br key={i} />
           )}

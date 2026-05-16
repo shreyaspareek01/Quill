@@ -120,7 +120,7 @@ export default function PostFormPage() {
           autoFocus
           style={{
             border: 'none', backgroundColor: 'transparent', width: '100%',
-            fontSize: '42px', lineHeight: 1.1, color: 'var(--color-text-primary)',
+            fontSize: 'var(--post-form-title-size)', lineHeight: 1.1, color: 'var(--color-text-primary)',
             marginBottom: '24px', letterSpacing: 'var(--ls-tight)',
           }}
         />
@@ -130,7 +130,7 @@ export default function PostFormPage() {
           rows={15}
           style={{
             border: 'none', backgroundColor: 'transparent', width: '100%',
-            fontSize: '18px', lineHeight: 1.8, color: 'var(--color-text-secondary)',
+            fontSize: 'var(--post-form-content-size)', lineHeight: 1.8, color: 'var(--color-text-secondary)',
             minHeight: '50vh', resize: 'vertical', padding: 0,
           }}
         />

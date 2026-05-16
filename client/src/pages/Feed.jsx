@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ChevronDown } from 'lucide-react';
 import { getPosts, getFollowingPosts } from '../api/posts';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -8,10 +9,17 @@ import PostCard from '../components/PostCard';
 export default function FeedPage() {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get('search') ? 'search' : 'for-you');
+  const [trending, setTrending] = useState([]);
+  const [trendingOpen, setTrendingOpen] = useState(false);
+
+  useEffect(() => {
+    getPosts({ limit: 5 }).then(({ data }) => setTrending(data)).catch(() => {});
+  }, []);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -60,6 +68,32 @@ export default function FeedPage() {
           Results for "<strong>{searchParams.get('search')}</strong>"
         </p>
       )}
+
+      <div className="mobile-trending">
+        {trending.length > 0 && (
+          <div style={{ marginBottom: 'var(--space-8)' }}>
+            <button onClick={() => setTrendingOpen(!trendingOpen)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '10px 0', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', color: 'var(--color-text-muted)' }}>
+              <span>Trending</span>
+              <ChevronDown size={16} strokeWidth={1.5} style={{ transform: trendingOpen ? 'rotate(180deg)' : 'none', transition: 'transform var(--duration-fast) var(--ease-out)' }} />
+            </button>
+            {trendingOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {trending.slice(0, 5).map(({ Post, votes }) => (
+                  <div key={Post.id}
+                    onClick={() => navigate(`/posts/${Post.id}`)}
+                    style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'background-color var(--duration-fast) var(--ease-out)' }}>
+                    <p className="font-serif" style={{ fontSize: '14px', fontWeight: 600, lineHeight: 1.3, marginBottom: '2px' }}>
+                      {Post.title.length > 50 ? Post.title.slice(0, 50) + '...' : Post.title}
+                    </p>
+                    <span className="text-caption" style={{ fontSize: '11px' }}>{votes} likes</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div>
         {loading ? (
