@@ -37,5 +37,5 @@ def get_user_reposts(user_id: int, db: Session = Depends(get_db), user: Optional
     reposted_post_ids = db.query(models.Repost.post_id).filter(models.Repost.user_id == user_id).subquery()
     results = _post_query_base(db, current_user_id).filter(
         models.Post.id.in_(reposted_post_ids)
-    ).group_by(models.Post.id).all()
+    ).group_by(models.Post.id).order_by(models.Post.created_at.desc()).all()
     return _format_results(results)

@@ -39,7 +39,7 @@ async def get_posts(db: Session = Depends(get_db), user: Optional[models.User] =
     user_id = user.id if user else -1
     results = _post_query_base(db, user_id).filter(
         models.Post.title.contains(search), models.Post.owner_id != user_id
-    ).group_by(models.Post.id).limit(limit).offset(skip).all()
+    ).group_by(models.Post.id).order_by(models.Post.created_at.desc()).limit(limit).offset(skip).all()
     return _format_results(results)
 
 @router.get("/user/{user_id}", response_model=list[PostResponseWithVotes])
@@ -47,7 +47,7 @@ async def get_user_posts(user_id: int, db: Session = Depends(get_db), user: Opti
     current_user_id = user.id if user else -1
     results = _post_query_base(db, current_user_id).filter(
         models.Post.owner_id == user_id
-    ).group_by(models.Post.id).limit(limit).offset(skip).all()
+    ).group_by(models.Post.id).order_by(models.Post.created_at.desc()).limit(limit).offset(skip).all()
     return _format_results(results)
 
 @router.get("/liked/{user_id}", response_model=list[PostResponseWithVotes])
@@ -56,7 +56,7 @@ async def get_liked_posts(user_id: int, db: Session = Depends(get_db), user: Opt
     liked_post_ids = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
     results = _post_query_base(db, current_user_id).filter(
         models.Post.id.in_(liked_post_ids)
-    ).group_by(models.Post.id).all()
+    ).group_by(models.Post.id).order_by(models.Post.created_at.desc()).all()
     return _format_results(results)
 
 @router.get("/following", response_model=list[PostResponseWithVotes])
@@ -64,7 +64,7 @@ async def get_following_posts(db: Session = Depends(get_db), user: models.User =
     followed_ids = db.query(models.Follow.following_id).filter(models.Follow.follower_id == user.id).subquery()
     results = _post_query_base(db, user.id).filter(
         models.Post.owner_id.in_(followed_ids)
-    ).group_by(models.Post.id).limit(limit).offset(skip).all()
+    ).group_by(models.Post.id).order_by(models.Post.created_at.desc()).limit(limit).offset(skip).all()
     return _format_results(results)
 
 @router.get("/{id}", response_model=PostResponseWithVotes)
