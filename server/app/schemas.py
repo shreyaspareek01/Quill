@@ -118,3 +118,6 @@ class GenerateContentRequest(BaseModel):
 
 class GenerateContentResponse(BaseModel):
     content: str
+
+class GenerateCoverResponse(BaseModel):
+    image_url: str

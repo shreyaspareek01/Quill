@@ -29,3 +29,6 @@ export const summarizePost = (id) =>
 
 export const generateContent = (title) =>
   api.post('/posts/generate-content', { title });
+
+export const generateCover = (title) =>
+  api.post('/posts/generate-cover', { title });

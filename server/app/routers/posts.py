@@ -1,6 +1,9 @@
 import httpx
+import urllib.parse
+from cloudinary import uploader
+import cloudinary
 from sqlalchemy import func
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
@@ -189,3 +192,28 @@ Use a natural, engaging tone — start with an intro, develop the idea, end with
         content = result["choices"][0]["message"]["content"].strip()
 
     return {"content": content}
+
+@router.post("/generate-cover", response_model=GenerateCoverResponse)
+async def generate_cover(req: GenerateContentRequest):
+    title = req.title.strip()
+    if not title:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title is required")
+
+    prompt = f"Blog cover image for: {title}, professional, high quality, beautiful"
+    poll_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt)}?width=1200&height=600&nologo=true"
+
+    cloudinary.config(
+        cloud_name=settings.cloudinary_cloud_name,
+        api_key=settings.cloudinary_api_key,
+        api_secret=settings.cloudinary_api_secret,
+        secure=True,
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(poll_url)
+            resp.raise_for_status()
+            upload_result = uploader.upload(resp.content, folder="quill/covers/ai", resource_type="image")
+            return {"image_url": upload_result.get("secure_url")}
+    except Exception:
+        return {"image_url": poll_url}

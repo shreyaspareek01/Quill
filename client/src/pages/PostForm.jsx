@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Image as ImageIcon, Loader2, Sparkles } from 'lucide-react';
-import { getPost, updatePost, createPost, generateContent } from '../api/posts';
+import { getPost, updatePost, createPost, generateContent, generateCover } from '../api/posts';
 import { uploadPostImage } from '../api/uploads';
 import { useToast } from '../context/ToastContext';
 
@@ -16,6 +16,7 @@ export default function PostFormPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
   const [generating, setGenerating] = useState(false);
+  const [generatingCover, setGeneratingCover] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -44,6 +45,17 @@ export default function PostFormPage() {
       toast.success('Image uploaded');
     } catch { toast.error('Upload failed'); }
     finally { setUploadingImage(false); }
+  };
+
+  const handleGenerateCover = async () => {
+    if (!form.title.trim()) { toast.error('Enter a title first'); return; }
+    setGeneratingCover(true);
+    try {
+      const { data } = await generateCover(form.title.trim());
+      setForm(prev => ({ ...prev, image_url: data.image_url }));
+      toast.success('Cover generated');
+    } catch { toast.error('Cover generation failed'); }
+    finally { setGeneratingCover(false); }
   };
 
   const handleGenerate = async () => {
@@ -103,25 +115,49 @@ export default function PostFormPage() {
           {form.image_url ? (
             <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
               <img src={form.image_url} alt="" style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', display: 'block' }} />
-              <button type="button" onClick={() => document.getElementById('cover-upload').click()}
-                style={{ position: 'absolute', bottom: '12px', right: '12px', padding: '8px 16px', backgroundColor: 'rgba(0,0,0,0.8)', color: '#FFF', fontSize: '12px', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
-                Change Cover
-              </button>
+              <div style={{ position: 'absolute', bottom: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+                <button type="button" onClick={handleGenerateCover} disabled={generatingCover || !form.title.trim()}
+                  style={{ padding: '8px 16px', backgroundColor: 'rgba(0,0,0,0.8)', color: '#FFF', fontSize: '12px', borderRadius: 'var(--radius-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {generatingCover ? <Loader2 size={13} strokeWidth={2} className="spin" /> : <Sparkles size={13} strokeWidth={1.5} />}
+                  <span>Regenerate</span>
+                </button>
+                <button type="button" onClick={() => document.getElementById('cover-upload').click()}
+                  style={{ padding: '8px 16px', backgroundColor: 'rgba(0,0,0,0.8)', color: '#FFF', fontSize: '12px', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
+                  Change Cover
+                </button>
+              </div>
             </div>
           ) : (
-            <button type="button" onClick={() => document.getElementById('cover-upload').click()}
-              style={{
-                width: '100%', height: '180px', border: '1px dashed var(--color-border-strong)',
-                borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: '8px',
-                color: 'var(--color-text-muted)', transition: 'all var(--duration-fast) var(--ease-out)',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.color = 'var(--color-gold)'; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border-strong)'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
-            >
-              {uploadingImage ? <Loader2 size={24} strokeWidth={1.5} /> : <ImageIcon size={24} strokeWidth={1.5} />}
-              <span style={{ fontSize: '14px' }}>{uploadingImage ? 'Uploading...' : 'Add a cover image'}</span>
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" onClick={() => document.getElementById('cover-upload').click()}
+                style={{
+                  flex: 1, height: '180px', border: '1px dashed var(--color-border-strong)',
+                  borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  color: 'var(--color-text-muted)', transition: 'all var(--duration-fast) var(--ease-out)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.borderColor = 'var(--color-gold)'; e.currentTarget.style.color = 'var(--color-gold)'; }}
+                onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border-strong)'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+              >
+                {uploadingImage ? <Loader2 size={24} strokeWidth={1.5} /> : <ImageIcon size={24} strokeWidth={1.5} />}
+                <span style={{ fontSize: '14px' }}>{uploadingImage ? 'Uploading...' : 'Upload cover'}</span>
+              </button>
+              <button type="button" onClick={handleGenerateCover} disabled={generatingCover || !form.title.trim()}
+                style={{
+                  width: '180px', height: '180px', border: '1px dashed var(--color-border-strong)',
+                  borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  color: 'var(--color-gold)', transition: 'all var(--duration-fast) var(--ease-out)',
+                  opacity: !form.title.trim() || generatingCover ? 0.5 : 1,
+                  cursor: !form.title.trim() || generatingCover ? 'not-allowed' : 'pointer',
+                }}
+                onMouseEnter={e => { if (form.title.trim() && !generatingCover) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.borderColor = 'var(--color-gold)'; }}}
+                onMouseLeave={e => { if (form.title.trim() && !generatingCover) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}}
+              >
+                {generatingCover ? <Loader2 size={24} strokeWidth={1.5} className="spin" /> : <Sparkles size={24} strokeWidth={1.5} />}
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>{generatingCover ? 'Generating...' : 'AI Cover'}</span>
+              </button>
+            </div>
           )}
           <input id="cover-upload" type="file" hidden accept="image/*" onChange={handleImageSelect} />
         </div>
@@ -137,24 +173,22 @@ export default function PostFormPage() {
               paddingRight: '120px', letterSpacing: 'var(--ls-tight)',
             }}
           />
-          {!isEdit && (
-            <button type="button" onClick={handleGenerate} disabled={generating || !form.title.trim()}
-              style={{
-                position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
-                display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
-                borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
-                backgroundColor: generating ? 'var(--color-gold-subtle)' : 'var(--color-gold-subtle)',
-                color: 'var(--color-gold)', fontSize: '12px', fontWeight: 600,
-                opacity: !form.title.trim() || generating ? 0.5 : 1,
-                cursor: !form.title.trim() || generating ? 'not-allowed' : 'pointer',
-              }}
-              onMouseEnter={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold)'; e.currentTarget.style.color = '#FFF'; }}}
-              onMouseLeave={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.color = 'var(--color-gold)'; }}}
-            >
-              {generating ? <Loader2 size={13} strokeWidth={2} className="spin" /> : <Sparkles size={13} strokeWidth={1.5} />}
-              <span>{generating ? 'Generating...' : 'Write with AI'}</span>
-            </button>
-          )}
+          <button type="button" onClick={handleGenerate} disabled={generating || !form.title.trim()}
+            style={{
+              position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+              display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
+              borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
+              backgroundColor: generating ? 'var(--color-gold-subtle)' : 'var(--color-gold-subtle)',
+              color: 'var(--color-gold)', fontSize: '12px', fontWeight: 600,
+              opacity: !form.title.trim() || generating ? 0.5 : 1,
+              cursor: !form.title.trim() || generating ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold)'; e.currentTarget.style.color = '#FFF'; }}}
+            onMouseLeave={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.color = 'var(--color-gold)'; }}}
+          >
+            {generating ? <Loader2 size={13} strokeWidth={2} className="spin" /> : <Sparkles size={13} strokeWidth={1.5} />}
+            <span>{generating ? 'Generating...' : 'Write with AI'}</span>
+          </button>
         </div>
 
         <textarea name="content" value={form.content} onChange={handleChange}
