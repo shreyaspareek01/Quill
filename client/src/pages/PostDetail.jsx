@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send } from 'lucide-react';
-import { getPost, deletePost } from '../api/posts';
+import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles } from 'lucide-react';
+import { getPost, deletePost, summarizePost } from '../api/posts';
 import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
 import { getComments, createComment } from '../api/comments';
@@ -36,6 +36,9 @@ export default function PostDetailPage() {
   const [comments, setComments] = useState([]);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -75,6 +78,18 @@ export default function PostDetailPage() {
       if (bookmarked) { await removeBookmark(data.Post.id); setBookmarked(false); toast.success('Removed'); }
       else { await bookmarkPost(data.Post.id); setBookmarked(true); toast.success('Saved'); }
     } catch { toast.error('Failed'); }
+  };
+
+  const handleSummarize = async () => {
+    if (summary) { setShowSummary(!showSummary); return; }
+    if (!data) return;
+    setSummarizing(true);
+    try {
+      const res = await summarizePost(data.Post.id);
+      setSummary(res.data.summary);
+      setShowSummary(true);
+    } catch { toast.error('AI summary unavailable'); }
+    finally { setSummarizing(false); }
   };
 
   const handleShare = async () => {
@@ -200,10 +215,43 @@ export default function PostDetailPage() {
               style={{ color: bookmarked ? 'var(--color-gold)' : 'inherit', width: '36px', height: '36px' }}>
               <Bookmark size={20} strokeWidth={1.5} fill={bookmarked ? 'var(--color-gold)' : 'none'} />
             </button>
+            <button onClick={handleSummarize} disabled={summarizing} className="btn-icon"
+              style={{ color: showSummary ? 'var(--color-gold)' : 'inherit', width: '36px', height: '36px' }}>
+              <Sparkles size={20} strokeWidth={1.5} />
+            </button>
             <button onClick={handleShare} className="btn-icon" style={{ marginLeft: 'auto', width: '36px', height: '36px' }}>
               <Share2 size={20} strokeWidth={1.5} />
             </button>
           </div>
+          {showSummary && summary && (
+            <div style={{
+              marginTop: '20px', padding: '16px 20px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'rgba(184, 148, 46, 0.06)',
+              border: '1px solid var(--color-border)',
+              fontSize: '14px', lineHeight: 1.7,
+              color: 'var(--color-text-secondary)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Sparkles size={14} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
+                <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', color: 'var(--color-gold)' }}>AI Summary</span>
+              </div>
+              <p style={{ margin: 0 }}>{summary}</p>
+            </div>
+          )}
+          {summarizing && (
+            <div style={{
+              marginTop: '20px', padding: '16px 20px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'rgba(184, 148, 46, 0.06)',
+              border: '1px solid var(--color-border)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={14} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
+                <div className="skeleton" style={{ height: '14px', width: '70%', borderRadius: '4px' }} />
+              </div>
+            </div>
+          )}
         </footer>
 
         <section style={{ marginTop: '48px' }}>

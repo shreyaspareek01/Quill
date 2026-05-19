@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Heart, Bookmark, Repeat, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2 } from 'lucide-react';
+import { MessageCircle, Heart, Bookmark, Repeat, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2, Sparkles } from 'lucide-react';
 import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark } from '../api/bookmarks';
 import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
-import { deletePost } from '../api/posts';
+import { deletePost, summarizePost } from '../api/posts';
 import { reportPost } from '../api/reports';
 import { repostPost, undoRepost } from '../api/reposts';
 import { useAuth } from '../context/AuthContext';
@@ -35,6 +35,9 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   const [following, setFollowing] = useState(false);
   const [voteLoading, setVoteLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   useEffect(() => {
     if (user && !isOwner) {
@@ -83,6 +86,18 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
       else { await followUser(post.owner_id); setFollowing(true); }
       onFollowChange?.(post.owner_id, !following);
     } catch { toast.error('Failed'); }
+  };
+
+  const handleSummarize = async (e) => {
+    e.stopPropagation();
+    if (summary) { setShowSummary(!showSummary); return; }
+    setSummarizing(true);
+    try {
+      const { data } = await summarizePost(post.id);
+      setSummary(data.summary);
+      setShowSummary(true);
+    } catch { toast.error('AI summary unavailable'); }
+    finally { setSummarizing(false); }
   };
 
   const handleShare = async (e) => {
@@ -215,10 +230,43 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
             <Repeat size={16} strokeWidth={1.5} />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{repostCount}</span>
           </button>
+          <button onClick={handleSummarize} disabled={summarizing}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: showSummary ? 'var(--color-gold)' : 'var(--color-text-muted)' }}>
+            <Sparkles size={16} strokeWidth={1.5} />
+          </button>
           <button onClick={handleShare} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
             <Share2 size={16} strokeWidth={1.5} />
           </button>
         </div>
+        {showSummary && summary && (
+          <div style={{
+            marginTop: '12px', padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'rgba(184, 148, 46, 0.06)',
+            border: '1px solid var(--color-border)',
+            fontSize: '13px', lineHeight: 1.6,
+            color: 'var(--color-text-secondary)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+              <Sparkles size={13} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
+              <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', color: 'var(--color-gold)' }}>AI Summary</span>
+            </div>
+            <p style={{ margin: 0 }}>{summary}</p>
+          </div>
+        )}
+        {summarizing && (
+          <div style={{
+            marginTop: '12px', padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'rgba(184, 148, 46, 0.06)',
+            border: '1px solid var(--color-border)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={13} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
+              <div className="skeleton" style={{ height: '13px', width: '80%', borderRadius: '4px' }} />
+            </div>
+          </div>
+        )}
       </div>
     </article>
   );

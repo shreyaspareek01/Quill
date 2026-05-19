@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     cloudinary_cloud_name: Optional[str] = None
     cloudinary_api_key: Optional[str] = None
     cloudinary_api_secret: Optional[str] = None
+    groq_api_key: Optional[str] = None
 
     class Config:
         env_file = ".env"

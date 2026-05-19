@@ -1,8 +1,10 @@
+import httpx
 from sqlalchemy import func
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
+from ..config import settings
 from fastapi import status,Response,APIRouter,Depends,Query
 from fastapi.exceptions import HTTPException
 from typing import Optional
@@ -102,3 +104,51 @@ async def update_post(id:int, post:PostCreate,db:Session=Depends(get_db),user:in
     post_query.update(post.model_dump(),synchronize_session=False)
     db.commit()
     return post_query.first()
+
+@router.post("/{id}/summarize", response_model=PostSummaryResponse)
+async def summarize_post(id: int, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id).first()
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id:{id} not found!")
+    
+    groq_key = settings.groq_api_key
+    if not groq_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GROQ_API_KEY not configured")
+
+    title = (post.title or "").strip()
+    content = (post.content or "").strip()
+
+    if len(title) + len(content) < 30:
+        return {"summary": "This post has nothing substantial to summarize."}
+
+    prompt = f"""Summarize this:
+
+Title: {title}
+Content: {content}
+
+Give a concise 2-3 sentence summary. If the content is vague or meaningless, just say "Nothing meaningful to summarize." — never ask the user to provide more content."""
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 200
+            }
+        )
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI summarization failed")
+        
+        result = response.json()
+        summary = result["choices"][0]["message"]["content"].strip()
+    
+    return {"summary": summary}

@@ -23,3 +23,6 @@ export const getUserPosts = (userId, params = {}) =>
 
 export const getLikedPosts = (userId) =>
   api.get(`/posts/liked/${userId}`);
+
+export const summarizePost = (id) =>
+  api.post(`/posts/${id}/summarize`);
