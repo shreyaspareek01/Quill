@@ -1,5 +1,5 @@
+import base64
 import httpx
-import urllib.parse
 from cloudinary import uploader
 import cloudinary
 from sqlalchemy import func
@@ -199,8 +199,9 @@ async def generate_cover(req: GenerateContentRequest):
     if not title:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title is required")
 
-    prompt = f"Blog cover image for: {title}, professional, high quality, beautiful"
-    poll_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(prompt)}?width=1200&height=600&nologo=true"
+    gemini_key = settings.gemini_api_key
+    if not gemini_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GEMINI_API_KEY not configured")
 
     cloudinary.config(
         cloud_name=settings.cloudinary_cloud_name,
@@ -209,14 +210,29 @@ async def generate_cover(req: GenerateContentRequest):
         secure=True,
     )
 
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(poll_url)
-            resp.raise_for_status()
-            upload_result = uploader.upload(resp.content, folder="quill/covers/ai", resource_type="image")
-            return {"image_url": upload_result.get("secure_url")}
-    except Exception:
-        return {"image_url": poll_url}
+    prompt = f"Blog cover image for: {title}, professional, high quality, beautiful, vibrant colors"
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={gemini_key}",
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseModalities": ["Text", "Image"]}
+            }
+        )
+
+        if resp.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Image generation failed")
+
+        result = resp.json()
+        for part in result.get("candidates", [{}])[0].get("content", {}).get("parts", []):
+            if "inlineData" in part:
+                img_data = part["inlineData"]["data"]
+                img_bytes = base64.b64decode(img_data)
+                upload_result = uploader.upload(img_bytes, folder="quill/covers/ai", resource_type="image")
+                return {"image_url": upload_result.get("secure_url")}
+
+    raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="No image generated")
 
 @router.post("/polish-title", response_model=PolishTitleResponse)
 async def polish_title(req: GenerateContentRequest):

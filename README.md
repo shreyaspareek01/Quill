@@ -59,7 +59,7 @@ server/  – FastAPI backend
 | GET | `/reposts/{user_id}` | User's reposted posts |
 | POST | `/posts/{id}/summarize` | AI summarize a post (Groq) |
 | POST | `/posts/generate-content` | AI generate post content from title (Groq) |
-| POST | `/posts/generate-cover` | AI generate cover image from title (Pollinations + Cloudinary) |
+| POST | `/posts/generate-cover` | AI generate cover image from title (Gemini + Cloudinary) |
 | POST | `/posts/polish-title` | AI polish/improve a draft title (Groq) |
 
 ### Local Setup
@@ -80,6 +80,7 @@ CLOUDINARY_CLOUD_NAME=xxx
 CLOUDINARY_API_KEY=xxx
 CLOUDINARY_API_SECRET=xxx
 GROQ_API_KEY=gsk_your_key
+GEMINI_API_KEY=your_gemini_key
 ```
 
 ```bash
