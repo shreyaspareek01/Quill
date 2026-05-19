@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Image as ImageIcon, Loader2, Sparkles } from 'lucide-react';
-import { getPost, updatePost, createPost, generateContent, generateCover } from '../api/posts';
+import { getPost, updatePost, createPost, generateContent, generateCover, polishTitle } from '../api/posts';
 import { uploadPostImage } from '../api/uploads';
 import { useToast } from '../context/ToastContext';
 
@@ -17,6 +17,7 @@ export default function PostFormPage() {
   const [fetching, setFetching] = useState(isEdit);
   const [generating, setGenerating] = useState(false);
   const [generatingCover, setGeneratingCover] = useState(false);
+  const [polishing, setPolishing] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -56,6 +57,17 @@ export default function PostFormPage() {
       toast.success('Cover generated');
     } catch { toast.error('Cover generation failed'); }
     finally { setGeneratingCover(false); }
+  };
+
+  const handlePolishTitle = async () => {
+    if (!form.title.trim()) { toast.error('Enter a title first'); return; }
+    setPolishing(true);
+    try {
+      const { data } = await polishTitle(form.title.trim());
+      setForm(prev => ({ ...prev, title: data.title }));
+      toast.success('Title polished');
+    } catch { toast.error('Title polish failed'); }
+    finally { setPolishing(false); }
   };
 
   const handleGenerate = async () => {
@@ -170,25 +182,41 @@ export default function PostFormPage() {
             style={{
               border: 'none', backgroundColor: 'transparent', width: '100%',
               fontSize: 'var(--post-form-title-size)', lineHeight: 1.1, color: 'var(--color-text-primary)',
-              paddingRight: '120px', letterSpacing: 'var(--ls-tight)',
+              paddingRight: '240px', letterSpacing: 'var(--ls-tight)',
             }}
           />
-          <button type="button" onClick={handleGenerate} disabled={generating || !form.title.trim()}
-            style={{
-              position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
-              display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
-              borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
-              backgroundColor: generating ? 'var(--color-gold-subtle)' : 'var(--color-gold-subtle)',
-              color: 'var(--color-gold)', fontSize: '12px', fontWeight: 600,
-              opacity: !form.title.trim() || generating ? 0.5 : 1,
-              cursor: !form.title.trim() || generating ? 'not-allowed' : 'pointer',
-            }}
-            onMouseEnter={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold)'; e.currentTarget.style.color = '#FFF'; }}}
-            onMouseLeave={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.color = 'var(--color-gold)'; }}}
-          >
-            {generating ? <Loader2 size={13} strokeWidth={2} className="spin" /> : <Sparkles size={13} strokeWidth={1.5} />}
-            <span>{generating ? 'Generating...' : 'Write with AI'}</span>
-          </button>
+          <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '6px' }}>
+            <button type="button" onClick={handlePolishTitle} disabled={polishing || !form.title.trim()}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px',
+                borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
+                backgroundColor: polishing ? 'var(--color-gold-subtle)' : 'transparent',
+                color: 'var(--color-gold)', fontSize: '11px', fontWeight: 600,
+                opacity: !form.title.trim() || polishing ? 0.5 : 1,
+                cursor: !form.title.trim() || polishing ? 'not-allowed' : 'pointer',
+              }}
+              onMouseEnter={e => { if (form.title.trim() && !polishing) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; }}}
+              onMouseLeave={e => { if (form.title.trim() && !polishing) { e.currentTarget.style.backgroundColor = 'transparent'; }}}
+            >
+              {polishing ? <Loader2 size={12} strokeWidth={2} className="spin" /> : <Sparkles size={12} strokeWidth={1.5} />}
+              <span>Polish</span>
+            </button>
+            <button type="button" onClick={handleGenerate} disabled={generating || !form.title.trim()}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 10px',
+                borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
+                backgroundColor: generating ? 'var(--color-gold-subtle)' : 'transparent',
+                color: 'var(--color-gold)', fontSize: '11px', fontWeight: 600,
+                opacity: !form.title.trim() || generating ? 0.5 : 1,
+                cursor: !form.title.trim() || generating ? 'not-allowed' : 'pointer',
+              }}
+              onMouseEnter={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; }}}
+              onMouseLeave={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'transparent'; }}}
+            >
+              {generating ? <Loader2 size={12} strokeWidth={2} className="spin" /> : <Sparkles size={12} strokeWidth={1.5} />}
+              <span>Write</span>
+            </button>
+          </div>
         </div>
 
         <textarea name="content" value={form.content} onChange={handleChange}

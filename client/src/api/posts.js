@@ -32,3 +32,6 @@ export const generateContent = (title) =>
 
 export const generateCover = (title) =>
   api.post('/posts/generate-cover', { title });
+
+export const polishTitle = (title) =>
+  api.post('/posts/polish-title', { title });

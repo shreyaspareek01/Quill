@@ -60,6 +60,7 @@ server/  – FastAPI backend
 | POST | `/posts/{id}/summarize` | AI summarize a post (Groq) |
 | POST | `/posts/generate-content` | AI generate post content from title (Groq) |
 | POST | `/posts/generate-cover` | AI generate cover image from title (Pollinations + Cloudinary) |
+| POST | `/posts/polish-title` | AI polish/improve a draft title (Groq) |
 
 ### Local Setup
 

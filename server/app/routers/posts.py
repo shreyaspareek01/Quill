@@ -3,7 +3,7 @@ import urllib.parse
 from cloudinary import uploader
 import cloudinary
 from sqlalchemy import func
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
@@ -217,3 +217,42 @@ async def generate_cover(req: GenerateContentRequest):
             return {"image_url": upload_result.get("secure_url")}
     except Exception:
         return {"image_url": poll_url}
+
+@router.post("/polish-title", response_model=PolishTitleResponse)
+async def polish_title(req: GenerateContentRequest):
+    title = req.title.strip()
+    if not title:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title is required")
+
+    groq_key = settings.groq_api_key
+    if not groq_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GROQ_API_KEY not configured")
+
+    prompt = f"""Make this blog post title more engaging and clickable while keeping the original intent:
+
+"{title}"
+
+Output only the polished title, nothing else."""
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 100
+            }
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Title polish failed")
+
+        result = response.json()
+        polished = result["choices"][0]["message"]["content"].strip().strip('"')
+
+    return {"title": polished}

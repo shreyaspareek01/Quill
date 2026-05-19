@@ -121,3 +121,6 @@ class GenerateContentResponse(BaseModel):
 
 class GenerateCoverResponse(BaseModel):
     image_url: str
+
+class PolishTitleResponse(BaseModel):
+    title: str
