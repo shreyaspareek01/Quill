@@ -163,9 +163,9 @@ async def generate_content(req: GenerateContentRequest):
     if not title:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title is required")
 
-    prompt = f"""Write a blog post based on this title: "{title}"
+    prompt = f"""Write 3-4 paragraphs of blog content for a post titled "{title}".
 
-Write 3-4 paragraphs with a natural, engaging tone. Start with an intro paragraph, develop the idea, and end with a concluding thought. Just output the content, no preamble."""
+Use a natural, engaging tone — start with an intro, develop the idea, end with a concluding thought. Output only the body paragraphs, no title, no preamble, no markdown."""
 
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
