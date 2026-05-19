@@ -20,6 +20,7 @@ server/  – FastAPI backend
 - **Alembic** – migrations
 - **JWT Auth** – token-based authentication via `python-jose`
 - **Cloudinary** – image uploads (avatars, covers, post images)
+- **Groq AI** – AI-powered content generation and post summarization
 
 ### Tables
 - `users` – profiles, auth, avatar/cover URLs
@@ -56,6 +57,9 @@ server/  – FastAPI backend
 | POST | `/uploads/cover` | Upload cover (1200×400 crop) |
 | POST/DELETE | `/reposts/{post_id}` | Repost / undo repost |
 | GET | `/reposts/{user_id}` | User's reposted posts |
+| POST | `/posts/{id}/summarize` | AI summarize a post (Groq) |
+| POST | `/posts/generate-content` | AI generate post content from title (Groq) |
+| POST | `/posts/generate-cover` | AI generate cover image from title (Pollinations + Cloudinary) |
 
 ### Local Setup
 
@@ -74,6 +78,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 CLOUDINARY_CLOUD_NAME=xxx
 CLOUDINARY_API_KEY=xxx
 CLOUDINARY_API_SECRET=xxx
+GROQ_API_KEY=gsk_your_key
 ```
 
 ```bash
