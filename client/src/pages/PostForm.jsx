@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { getPost, updatePost, createPost } from '../api/posts';
+import { ArrowLeft, Save, Image as ImageIcon, Loader2, Sparkles } from 'lucide-react';
+import { getPost, updatePost, createPost, generateContent } from '../api/posts';
 import { uploadPostImage } from '../api/uploads';
 import { useToast } from '../context/ToastContext';
 
@@ -15,6 +15,7 @@ export default function PostFormPage() {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [fetching, setFetching] = useState(isEdit);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -43,6 +44,17 @@ export default function PostFormPage() {
       toast.success('Image uploaded');
     } catch { toast.error('Upload failed'); }
     finally { setUploadingImage(false); }
+  };
+
+  const handleGenerate = async () => {
+    if (!form.title.trim()) { toast.error('Enter a title first'); return; }
+    setGenerating(true);
+    try {
+      const { data } = await generateContent(form.title.trim());
+      setForm(prev => ({ ...prev, content: data.content }));
+      toast.success('Content generated');
+    } catch { toast.error('Generation failed'); }
+    finally { setGenerating(false); }
   };
 
   const handleSubmit = async (e) => {
@@ -114,16 +126,36 @@ export default function PostFormPage() {
           <input id="cover-upload" type="file" hidden accept="image/*" onChange={handleImageSelect} />
         </div>
 
-        <input name="title" value={form.title} onChange={handleChange}
-          placeholder="A Compelling Title..."
-          className="font-serif"
-          autoFocus
-          style={{
-            border: 'none', backgroundColor: 'transparent', width: '100%',
-            fontSize: 'var(--post-form-title-size)', lineHeight: 1.1, color: 'var(--color-text-primary)',
-            marginBottom: '24px', letterSpacing: 'var(--ls-tight)',
-          }}
-        />
+        <div style={{ position: 'relative', marginBottom: '24px' }}>
+          <input name="title" value={form.title} onChange={handleChange}
+            placeholder="A Compelling Title..."
+            className="font-serif"
+            autoFocus
+            style={{
+              border: 'none', backgroundColor: 'transparent', width: '100%',
+              fontSize: 'var(--post-form-title-size)', lineHeight: 1.1, color: 'var(--color-text-primary)',
+              paddingRight: '120px', letterSpacing: 'var(--ls-tight)',
+            }}
+          />
+          {!isEdit && (
+            <button type="button" onClick={handleGenerate} disabled={generating || !form.title.trim()}
+              style={{
+                position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+                display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px',
+                borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)',
+                backgroundColor: generating ? 'var(--color-gold-subtle)' : 'var(--color-gold-subtle)',
+                color: 'var(--color-gold)', fontSize: '12px', fontWeight: 600,
+                opacity: !form.title.trim() || generating ? 0.5 : 1,
+                cursor: !form.title.trim() || generating ? 'not-allowed' : 'pointer',
+              }}
+              onMouseEnter={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold)'; e.currentTarget.style.color = '#FFF'; }}}
+              onMouseLeave={e => { if (form.title.trim() && !generating) { e.currentTarget.style.backgroundColor = 'var(--color-gold-subtle)'; e.currentTarget.style.color = 'var(--color-gold)'; }}}
+            >
+              {generating ? <Loader2 size={13} strokeWidth={2} className="spin" /> : <Sparkles size={13} strokeWidth={1.5} />}
+              <span>{generating ? 'Generating...' : 'Write with AI'}</span>
+            </button>
+          )}
+        </div>
 
         <textarea name="content" value={form.content} onChange={handleChange}
           placeholder="Every great idea starts as a sentence..."

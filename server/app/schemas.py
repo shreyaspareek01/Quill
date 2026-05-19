@@ -112,3 +112,9 @@ class RepostResponse(BaseModel):
 
 class PostSummaryResponse(BaseModel):
     summary: str
+
+class GenerateContentRequest(BaseModel):
+    title: str
+
+class GenerateContentResponse(BaseModel):
+    content: str

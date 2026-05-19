@@ -26,3 +26,6 @@ export const getLikedPosts = (userId) =>
 
 export const summarizePost = (id) =>
   api.post(`/posts/${id}/summarize`);
+
+export const generateContent = (title) =>
+  api.post('/posts/generate-content', { title });

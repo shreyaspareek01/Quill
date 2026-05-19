@@ -1,6 +1,6 @@
 import httpx
 from sqlalchemy import func
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
@@ -152,3 +152,40 @@ Give a concise 2-3 sentence summary. If the content is vague or meaningless, jus
         summary = result["choices"][0]["message"]["content"].strip()
     
     return {"summary": summary}
+
+@router.post("/generate-content", response_model=GenerateContentResponse)
+async def generate_content(req: GenerateContentRequest):
+    groq_key = settings.groq_api_key
+    if not groq_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GROQ_API_KEY not configured")
+
+    title = req.title.strip()
+    if not title:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title is required")
+
+    prompt = f"""Write a blog post based on this title: "{title}"
+
+Write 3-4 paragraphs with a natural, engaging tone. Start with an intro paragraph, develop the idea, and end with a concluding thought. Just output the content, no preamble."""
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 600
+            }
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Content generation failed")
+
+        result = response.json()
+        content = result["choices"][0]["message"]["content"].strip()
+
+    return {"content": content}
