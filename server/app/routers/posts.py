@@ -198,7 +198,11 @@ async def generate_cover(req: GenerateContentRequest):
     if not title:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title is required")
 
+    gemini_key = settings.gemini_api_key
     hf_key = settings.hf_api_key
+
+    if not gemini_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GEMINI_API_KEY not configured")
     if not hf_key:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="HF_API_KEY not configured")
 
@@ -209,19 +213,30 @@ async def generate_cover(req: GenerateContentRequest):
         secure=True,
     )
 
-    prompt = f"A professional, high-quality blog cover image related to the topic: {title}. Photorealistic, well-composed, visually striking, suitable for a tech blog header, vibrant colors, sharp details, 16:9 aspect ratio"
+    async with httpx.AsyncClient(timeout=120) as client:
+        gemini_resp = await client.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}",
+            json={
+                "contents": [{"parts": [{"text": f"Generate a short 2-sentence image prompt for a blog cover about: {title}. Describe the main subject and visual style. No explanation."}]}]
+            }
+        )
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
+        if gemini_resp.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Prompt generation failed")
+
+        gemini_result = gemini_resp.json()
+        prompt = gemini_result["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+        flux_resp = await client.post(
             "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
             headers={"Authorization": f"Bearer {hf_key}"},
             json={"inputs": prompt},
         )
 
-        if resp.status_code != 200:
+        if flux_resp.status_code != 200:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Image generation failed")
 
-        img_bytes = resp.content
+        img_bytes = flux_resp.content
         upload_result = uploader.upload(img_bytes, folder="quill/covers/ai", resource_type="image")
         return {"image_url": upload_result.get("secure_url")}
 

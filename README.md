@@ -21,6 +21,7 @@ server/  – FastAPI backend
 - **JWT Auth** – token-based authentication via `python-jose`
 - **Cloudinary** – image uploads (avatars, covers, post images)
 - **Groq AI** – AI-powered content generation and post summarization
+- **Gemini + Hugging Face FLUX** – AI cover image generation (Gemini crafts prompts, FLUX renders)
 
 ### Tables
 - `users` – profiles, auth, avatar/cover URLs
@@ -59,7 +60,7 @@ server/  – FastAPI backend
 | GET | `/reposts/{user_id}` | User's reposted posts |
 | POST | `/posts/{id}/summarize` | AI summarize a post (Groq) |
 | POST | `/posts/generate-content` | AI generate post content from title (Groq) |
-| POST | `/posts/generate-cover` | AI generate cover image from title (Gemini + Cloudinary) |
+| POST | `/posts/generate-cover` | AI generate cover image from title (Gemini prompt → FLUX → Cloudinary) |
 | POST | `/posts/polish-title` | AI polish/improve a draft title (Groq) |
 
 ### Local Setup
@@ -81,6 +82,7 @@ CLOUDINARY_API_KEY=xxx
 CLOUDINARY_API_SECRET=xxx
 GROQ_API_KEY=gsk_your_key
 GEMINI_API_KEY=your_gemini_key
+HF_API_KEY=hf_your_huggingface_token
 ```
 
 ```bash
