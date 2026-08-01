@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter } from 'lucide-react';
 import ColorThief from 'color-thief-browser';
 import { getPost, deletePost, summarizePost } from '../api/posts';
 import { castVote } from '../api/votes';
@@ -46,6 +46,14 @@ export default function PostDetailPage() {
   const [readProgress, setReadProgress] = useState(0);
   const articleRef = useRef(null);
   const coverImgRef = useRef(null);
+
+  // — Commit 2: Inline Annotations —
+  const [tooltip, setTooltip] = useState(null); // { x, y, text }
+  const [highlights, setHighlights] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`quill-hl-${id}`) || '[]'); } catch { return []; }
+  });
+  const contentRef = useRef(null);
+  const tooltipRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -95,6 +103,65 @@ export default function PostDetailPage() {
       if (lum > 0.1 && lum < 0.92) setAccentColor(`${r}, ${g}, ${b}`);
     } catch { /* cross-origin or tiny image — silently skip */ }
   }, []);
+
+  // — Commit 2: Annotation helpers —
+  const saveHighlights = useCallback((list) => {
+    setHighlights(list);
+    localStorage.setItem(`quill-hl-${id}`, JSON.stringify(list));
+  }, [id]);
+
+  const handleTextSelect = useCallback(() => {
+    const sel = window.getSelection();
+    const text = sel?.toString().trim();
+    if (!text || text.length < 10) { setTooltip(null); return; }
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    setTooltip({ x: rect.left + rect.width / 2, y: rect.top + scrollY - 52, text });
+  }, []);
+
+  const handleShareQuote = useCallback(() => {
+    if (!tooltip) return;
+    const quote = `"${tooltip.text}" — from "${data?.Post?.title || 'Quill'}"\n${window.location.href}`;
+    navigator.clipboard.writeText(quote).then(() => toast.success('Quote copied!'));
+    window.getSelection()?.removeAllRanges();
+    setTooltip(null);
+  }, [tooltip, data, toast]);
+
+  const handleHighlight = useCallback(() => {
+    if (!tooltip) return;
+    const updated = highlights.includes(tooltip.text) ? highlights : [...highlights, tooltip.text];
+    saveHighlights(updated);
+    toast.success('Highlighted!');
+    window.getSelection()?.removeAllRanges();
+    setTooltip(null);
+  }, [tooltip, highlights, saveHighlights, toast]);
+
+  // Dismiss tooltip on outside click
+  useEffect(() => {
+    const dismiss = (e) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(e.target)) setTooltip(null);
+    };
+    document.addEventListener('mousedown', dismiss);
+    return () => document.removeEventListener('mousedown', dismiss);
+  }, []);
+
+  // Render paragraph content with highlights wrapped in <mark>
+  const renderContent = useCallback((text) => {
+    if (!highlights.length) return text;
+    let result = text;
+    highlights.forEach(hl => {
+      if (text.includes(hl)) result = result.split(hl).join(`%%MARK%%${hl}%%ENDMARK%%`);
+    });
+    const parts = result.split(/(%%MARK%%.*?%%ENDMARK%%)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('%%MARK%%')) {
+        const content = part.replace('%%MARK%%', '').replace('%%ENDMARK%%', '');
+        return <mark key={i} className="quill-highlight">{content}</mark>;
+      }
+      return part;
+    });
+  }, [highlights]);
 
   const accentRGB = accentColor ?? '184, 148, 46'; // fallback = gold
 
@@ -235,11 +302,34 @@ export default function PostDetailPage() {
           </div>
         </header>
 
-        <div style={{ fontSize: 'var(--post-content-size)', lineHeight: 1.8, color: 'var(--color-text-secondary)', marginBottom: '40px' }}>
+        <div
+          ref={contentRef}
+          onMouseUp={handleTextSelect}
+          style={{ fontSize: 'var(--post-content-size)', lineHeight: 1.8, color: 'var(--color-text-secondary)', marginBottom: '40px', userSelect: 'text', cursor: 'text', position: 'relative' }}
+        >
           {Post.content.split('\n').map((para, i) =>
-            para.trim() ? <p key={i} style={{ marginBottom: '1.5em' }}>{para}</p> : <br key={i} />
+            para.trim() ? <p key={i} style={{ marginBottom: '1.5em' }}>{renderContent(para)}</p> : <br key={i} />
           )}
         </div>
+
+        {/* ─── Annotation Tooltip ─── */}
+        {tooltip && (
+          <div
+            ref={tooltipRef}
+            className="annotation-tooltip"
+            style={{ position: 'absolute', left: tooltip.x, top: tooltip.y, transform: 'translateX(-50%)' }}
+          >
+            <button className="annotation-btn" onClick={handleShareQuote} title="Copy quote to clipboard">
+              <Quote size={13} strokeWidth={2} />
+              <span>Share Quote</span>
+            </button>
+            <div className="annotation-divider" />
+            <button className="annotation-btn" onClick={handleHighlight} title="Highlight this passage">
+              <Highlighter size={13} strokeWidth={2} />
+              <span>Highlight</span>
+            </button>
+          </div>
+        )}
 
         {Post.image_url && (
           <div style={{ margin: '40px 0', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-accent-border)' }}>
