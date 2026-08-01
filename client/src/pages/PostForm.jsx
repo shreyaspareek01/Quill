@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Image as ImageIcon, Loader2, Sparkles, X, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Image as ImageIcon, Loader2, Sparkles, X, RefreshCw, Copy } from 'lucide-react';
 import { getPost, updatePost, createPost, generateContent, generateCover, polishTitle } from '../api/posts';
 import { uploadPostImage } from '../api/uploads';
 import { useToast } from '../context/ToastContext';
@@ -201,6 +201,12 @@ export default function PostFormPage() {
     }
   };
 
+  const handleCopyFeedback = () => {
+    if (!coachFeedback) return;
+    navigator.clipboard.writeText(coachFeedback);
+    toast.success('Suggestions copied to clipboard!');
+  };
+
   const renderFormattedFeedback = (text) => {
     if (!text) return null;
 
@@ -231,6 +237,23 @@ export default function PostFormPage() {
             <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-gold)' }}>{score}/10</span>
           </div>
         )}
+        
+        <button 
+          type="button" 
+          onClick={handleCopyFeedback} 
+          className="btn btn-secondary btn-sm" 
+          style={{ 
+            width: '100%', 
+            marginBottom: '20px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '6px' 
+          }}
+        >
+          <Copy size={13} />
+          <span>Copy Suggestions</span>
+        </button>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13.5px', lineHeight: 1.6 }}>
           {paragraphs.map((p, idx) => {
             const isBullet = p.trim().startsWith('-') || p.trim().startsWith('*');

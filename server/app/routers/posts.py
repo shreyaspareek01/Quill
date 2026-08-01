@@ -2,7 +2,7 @@ import httpx
 import json
 from cloudinary import uploader
 import cloudinary
-from sqlalchemy import func
+from sqlalchemy import func, text
 from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse, CoachRequest
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -12,6 +12,32 @@ from ..config import settings
 from fastapi import status,Response,APIRouter,Depends,Query
 from fastapi.exceptions import HTTPException
 from typing import Optional
+
+async def generate_post_embedding(title: str, content: str) -> Optional[list[float]]:
+    gemini_key = settings.gemini_api_key
+    if not gemini_key:
+        return None
+    text_to_embed = f"Title: {title}\n\nContent: {content}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key={gemini_key}"
+    payload = {
+        "model": "models/gemini-embedding-2",
+        "content": {
+            "parts": [{"text": text_to_embed}]
+        },
+        "outputDimensionality": 768
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(url, json=payload)
+            if response.status_code == 200:
+                data = response.json()
+                return data["embedding"]["values"]
+            else:
+                print(f"Gemini embedding API error: {response.status_code} - {response.text}")
+                return None
+    except Exception as e:
+        print(f"Failed to fetch embedding: {e}")
+        return None
 
 router = APIRouter(prefix="/posts",tags=["Posts"])
 
@@ -68,6 +94,66 @@ async def get_following_posts(db: Session = Depends(get_db), user: models.User =
     ).group_by(models.Post.id).order_by(models.Post.created_at.desc()).limit(limit).offset(skip).all()
     return _format_results(results)
 
+@router.get("/recommended", response_model=list[PostResponseWithVotes])
+async def get_recommended_posts(
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(oauth2.get_optional_user),
+    limit: int = Query(10, ge=1, le=100),
+    skip: int = Query(0, ge=0)
+):
+    user_id = user.id if user else -1
+    # If the user is not authenticated or not logged in, we fall back to trending posts
+    if not user:
+        results = _post_query_base(db, -1).filter(
+            models.Post.published == True
+        ).group_by(models.Post.id).order_by(
+            text("votes DESC, comment_count DESC, created_at DESC")
+        ).limit(limit).offset(skip).all()
+        return _format_results(results)
+    
+    # 1. Fetch engaged post IDs for user (liked, bookmarked, commented, or reposted)
+    liked_ids = db.query(models.Vote.post_id).filter(models.Vote.user_id == user.id)
+    bookmarked_ids = db.query(models.Bookmark.post_id).filter(models.Bookmark.user_id == user.id)
+    commented_ids = db.query(models.Comment.post_id).filter(models.Comment.user_id == user.id)
+    reposted_ids = db.query(models.Repost.post_id).filter(models.Repost.user_id == user.id)
+    
+    engaged_post_ids_query = liked_ids.union(bookmarked_ids).union(commented_ids).union(reposted_ids)
+    engaged_post_ids = [r[0] for r in engaged_post_ids_query.all()]
+    
+    # 2. Compute centroid of embeddings
+    centroid = None
+    if engaged_post_ids:
+        # Fetch embeddings for those posts
+        engaged_posts = db.query(models.Post.embedding).filter(
+            models.Post.id.in_(engaged_post_ids),
+            models.Post.embedding != None
+        ).all()
+        if engaged_posts:
+            embeddings = [p[0] for p in engaged_posts]
+            dim = len(embeddings[0])
+            centroid = [sum(emb[i] for emb in embeddings) / len(embeddings) for i in range(dim)]
+            
+    # 3. If there is no centroid (no history or no embedded engaged posts), fall back to trending posts
+    if centroid is None:
+        results = _post_query_base(db, user.id).filter(
+            models.Post.owner_id != user.id,
+            models.Post.published == True
+        ).group_by(models.Post.id).order_by(
+            text("votes DESC, comment_count DESC, created_at DESC")
+        ).limit(limit).offset(skip).all()
+        return _format_results(results)
+        
+    # 4. Cosine similarity query using pgvector's cosine distance
+    results = _post_query_base(db, user.id).filter(
+        models.Post.owner_id != user.id,
+        models.Post.published == True,
+        models.Post.embedding != None
+    ).group_by(models.Post.id).order_by(
+        models.Post.embedding.cosine_distance(centroid)
+    ).limit(limit).offset(skip).all()
+    
+    return _format_results(results)
+
 @router.get("/{id}", response_model=PostResponseWithVotes)
 async def get_post(id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user)):
     user_id = user.id if user else -1
@@ -79,7 +165,8 @@ async def get_post(id: int, db: Session = Depends(get_db), user: Optional[models
 
 @router.post("/",status_code=status.HTTP_201_CREATED,response_model=PostResponse)
 async def create_post(post:PostCreate,db:Session = Depends(get_db),user: int = Depends(oauth2.get_current_user)):
-    new_post = models.Post(owner_id=user.id, **post.model_dump());
+    emb = await generate_post_embedding(post.title, post.content)
+    new_post = models.Post(owner_id=user.id, embedding=emb, **post.model_dump());
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
@@ -105,7 +192,13 @@ async def update_post(id:int, post:PostCreate,db:Session=Depends(get_db),user:in
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Post with id: {id} not found!")
     if db_post.owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail=f"Not authorized to perform the requested action")
-    post_query.update(post.model_dump(),synchronize_session=False)
+    
+    emb = await generate_post_embedding(post.title, post.content)
+    update_data = post.model_dump()
+    if emb is not None:
+        update_data["embedding"] = emb
+        
+    post_query.update(update_data,synchronize_session=False)
     db.commit()
     return post_query.first()
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
-import { getPosts, getFollowingPosts } from '../api/posts';
+import { getPosts, getFollowingPosts, getRecommendedPosts } from '../api/posts';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import PostCard from '../components/PostCard';
@@ -27,6 +27,9 @@ export default function FeedPage() {
       let data;
       if (activeTab === 'following' && user) {
         const res = await getFollowingPosts({ limit: 30 });
+        data = res.data;
+      } else if (activeTab === 'for-you' && user && !searchParams.get('search')) {
+        const res = await getRecommendedPosts({ limit: 30 });
         data = res.data;
       } else {
         const params = { limit: 30 };

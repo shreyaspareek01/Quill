@@ -35,3 +35,6 @@ export const generateCover = (title) =>
 
 export const polishTitle = (title) =>
   api.post('/posts/polish-title', { title });
+
+export const getRecommendedPosts = (params = {}) =>
+  api.get('/posts/recommended', { params });

@@ -35,6 +35,29 @@ app.include_router(analytics.router)
 async def root():
     return {"message":"Welcome to my API!!!"}
 
+@app.on_event("startup")
+async def backfill_embeddings():
+    from .database import SessionLocal
+    from .models import Post
+    from .routers.posts import generate_post_embedding
+    
+    db = SessionLocal()
+    try:
+        unembedded_posts = db.query(Post).filter(Post.embedding == None).all()
+        if unembedded_posts:
+            print(f"Backfilling embeddings for {len(unembedded_posts)} posts...")
+            for post in unembedded_posts:
+                emb = await generate_post_embedding(post.title, post.content)
+                if emb is not None:
+                    post.embedding = emb
+            db.commit()
+            print("Backfilling embeddings complete!")
+    except Exception as e:
+        print("Failed to backfill embeddings:", e)
+    finally:
+        db.close()
+
+
 
 
 

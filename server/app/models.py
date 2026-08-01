@@ -7,6 +7,7 @@ from sqlalchemy import Integer
 from sqlalchemy import Column
 from .database import Base
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 
 
 class Post(Base):
@@ -19,6 +20,7 @@ class Post(Base):
     created_at = Column(TIMESTAMP(timezone=True),server_default=sql_text('NOW()'),nullable=False)
     owner_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),nullable=False)
     owner = relationship("User")
+    embedding = Column(Vector(768), nullable=True)
 
 class User(Base):
     __tablename__  = 'users'
