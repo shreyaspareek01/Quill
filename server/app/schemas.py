@@ -31,6 +31,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
     cover_url: Optional[str] = None
     created_at:datetime
+    badges: list[str] = []
     model_config = ConfigDict(from_attributes=True)
     
 class UserLogin(BaseModel):

@@ -8,6 +8,7 @@ import { getFollowStatus, followUser, unfollowUser } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import PostCard from '../components/PostCard';
+import BadgeRow from '../components/BadgeRow';
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
@@ -141,9 +142,12 @@ export default function ProfilePage() {
 
         <div style={{ marginBottom: '16px' }}>
           <h1 className="font-serif" style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1.1, marginBottom: '4px' }}>{displayName}</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span style={{ color: 'var(--color-gold)', fontSize: '13px', fontWeight: 500 }}>@{username}</span>
             <span className="text-caption" style={{ fontSize: '11px' }}>— Joined {formatDate(profile.created_at)}</span>
+          </div>
+          <div style={{ marginBottom: '12px' }}>
+            <BadgeRow badges={profile.badges} />
           </div>
           {profile.bio && <p style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--color-text-secondary)', marginBottom: '10px' }}>{profile.bio}</p>}
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>

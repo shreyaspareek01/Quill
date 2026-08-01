@@ -9,6 +9,7 @@ import { reportPost } from '../api/reports';
 import { repostPost, undoRepost } from '../api/reposts';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { getMiniBadge } from './BadgeRow';
 
 function formatDate(dateStr) {
   const date = new Date(dateStr);
@@ -115,6 +116,17 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '14px', fontWeight: 600 }}>{displayName}</span>
+              {post.owner?.badges?.length > 0 && (() => {
+                const mb = getMiniBadge(post.owner.badges[0]);
+                return mb ? (
+                  <span 
+                    title={`${mb.label}: ${mb.description}`} 
+                    style={{ cursor: 'help', fontSize: '11px', display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    {mb.emoji}
+                  </span>
+                ) : null;
+              })()}
               <Feather size={10} strokeWidth={2} style={{ color: 'var(--color-gold)' }} />
               <span className="text-caption" style={{ fontSize: '12px' }}>@{username}</span>
             </div>

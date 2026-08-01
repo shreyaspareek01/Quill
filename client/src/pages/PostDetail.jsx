@@ -8,6 +8,7 @@ import { getComments, createComment } from '../api/comments';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { logPassageHighlight } from '../api/analytics';
+import { getMiniBadge } from '../components/BadgeRow';
 import ReactionPicker from '../components/ReactionPicker';
 
 function formatDate(d) {
@@ -360,6 +361,17 @@ export default function PostDetailPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '16px', fontWeight: 600 }}>{displayName}</span>
+                {Post.owner?.badges?.length > 0 && (() => {
+                  const mb = getMiniBadge(Post.owner.badges[0]);
+                  return mb ? (
+                    <span 
+                      title={`${mb.label}: ${mb.description}`} 
+                      style={{ cursor: 'help', fontSize: '12px', display: 'inline-flex', alignItems: 'center' }}
+                    >
+                      {mb.emoji}
+                    </span>
+                  ) : null;
+                })()}
                 <Feather size={11} strokeWidth={2} style={{ color: 'var(--color-accent)' }} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
@@ -588,6 +600,17 @@ export default function PostDetailPage() {
                         <span style={{ fontSize: '13px', fontWeight: 600, color: isDevil ? 'var(--color-destructive)' : 'inherit' }}>
                           {c.user?.full_name || c.user?.username || c.user?.email?.split('@')[0] || 'User'}
                         </span>
+                        {!isDevil && c.user?.badges?.length > 0 && (() => {
+                          const mb = getMiniBadge(c.user.badges[0]);
+                          return mb ? (
+                            <span 
+                              title={`${mb.label}: ${mb.description}`} 
+                              style={{ cursor: 'help', fontSize: '11px', display: 'inline-flex', alignItems: 'center' }}
+                            >
+                              {mb.emoji}
+                            </span>
+                          ) : null;
+                        })()}
                         {isDevil && (
                           <span style={{ 
                             fontSize: '9px', 

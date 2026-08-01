@@ -37,6 +37,35 @@ class User(Base):
     cover_url = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True),server_default=sql_text('NOW()'),nullable=False)
 
+    @property
+    def badges(self) -> list[str]:
+        from sqlalchemy.orm import object_session
+        db = object_session(self)
+        if db is None:
+            return []
+        
+        badges = []
+        # 1. Prolific Writer (posts >= 5)
+        post_count = db.query(Post).filter(Post.owner_id == self.id).count()
+        if post_count >= 5:
+            badges.append("prolific_writer")
+            
+        # 2. Thought Leader (total reactions received >= 5)
+        reaction_count = db.query(Reaction).join(Post).filter(Post.owner_id == self.id).count()
+        if reaction_count >= 5:
+            badges.append("thought_leader")
+            
+        # 3. Frequent Debater (comments written >= 5)
+        comment_count = db.query(Comment).filter(Comment.user_id == self.id).count()
+        if comment_count >= 5:
+            badges.append("frequent_debater")
+            
+        # 4. Early Adopter (id <= 10)
+        if self.id <= 10:
+            badges.append("early_adopter")
+            
+        return badges
+
 class Vote(Base):
     __tablename__ = 'votes'
     user_id = Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),primary_key=True)
