@@ -1,8 +1,10 @@
 import httpx
+import json
 from cloudinary import uploader
 import cloudinary
 from sqlalchemy import func
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse, CoachRequest
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
@@ -278,3 +280,53 @@ Output only the polished title, nothing else."""
         polished = result["choices"][0]["message"]["content"].strip().strip('"')
 
     return {"title": polished}
+
+@router.post("/coach")
+async def post_coach(req: CoachRequest, user: models.User = Depends(oauth2.get_current_user)):
+    gemini_key = settings.gemini_api_key
+    if not gemini_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+
+    content = req.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+
+    prompt = f"""You are an elite, encouraging AI writing coach. Analyze the following blog post draft.
+Provide constructive, actionable feedback. Your feedback MUST address:
+1. CLARITY SCORE: Evaluate the overall clarity on a scale of 1-10. Follow it with a brief 1-sentence justification.
+2. HOOK STRENGTH: Evaluate the first 2-3 sentences. Give a constructive recommendation for improvement.
+3. RHYTHM & VOICE: Offer a 2-sentence note on sentence structure variety, flow, and tone.
+4. ACTIONABLE SUGGESTIONS: Provide exactly 2-3 specific, bulleted rewrite or editing recommendations.
+
+Keep your feedback highly concise, structured, and focused on helping the author improve immediately. Do not include markdown headers or greetings. Make the response structure readable.
+
+Draft Content:
+{content}
+"""
+
+    async def event_generator():
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key={gemini_key}&alt=sse"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        
+        async with httpx.AsyncClient(timeout=60) as client:
+            async with client.stream("POST", url, json=payload) as response:
+                if response.status_code != 200:
+                    yield "data: " + json.dumps({"error": "Failed to connect to AI coach"}) + "\n\n"
+                    return
+                
+                async for line in response.aiter_lines():
+                    if line.startswith("data:"):
+                        try:
+                            # Strip "data:" prefix and deserialize
+                            clean_line = line[5:].strip()
+                            data_json = json.loads(clean_line)
+                            text_chunk = data_json["candidates"][0]["content"]["parts"][0]["text"]
+                            yield f"data: {json.dumps({'text': text_chunk})}\n\n"
+                        except Exception:
+                            # Skip standard keepalives or formatting hiccups
+                            pass
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+

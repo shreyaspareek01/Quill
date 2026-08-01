@@ -124,3 +124,6 @@ class GenerateCoverResponse(BaseModel):
 
 class PolishTitleResponse(BaseModel):
     title: str
+
+class CoachRequest(BaseModel):
+    content: str
