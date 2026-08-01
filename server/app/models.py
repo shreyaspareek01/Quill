@@ -118,3 +118,12 @@ class PassageHighlight(Base):
     count      = Column(Integer, nullable=False, default=1)
     created_at = Column(TIMESTAMP(timezone=True), server_default=sql_text('NOW()'), nullable=False)
     post       = relationship("Post")
+
+class Reaction(Base):
+    __tablename__ = 'reactions'
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True)
+    reaction_type = Column(String, nullable=False) # 'insightful', 'agreed', 'debatable'
+    created_at = Column(TIMESTAMP(timezone=True), server_default=sql_text('NOW()'), nullable=False)
+    user = relationship("User")
+    post = relationship("Post")

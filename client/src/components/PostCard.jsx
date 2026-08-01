@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Heart, Bookmark, Repeat, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2, Sparkles } from 'lucide-react';
-import { castVote } from '../api/votes';
+import { MessageCircle, Bookmark, Repeat, Share2, MoreHorizontal, Feather, Clock, Flag, Edit3, Trash2, Sparkles } from 'lucide-react';
+import ReactionPicker from './ReactionPicker';
 import { bookmarkPost, removeBookmark } from '../api/bookmarks';
 import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
 import { deletePost, summarizePost } from '../api/posts';
@@ -27,13 +27,10 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
 
   const isOwner = user?.id === post.owner_id;
 
-  const [votes, setVotes] = useState(initialVotes || 0);
-  const [voted, setVoted] = useState(initialVoted || false);
   const [bookmarked, setBookmarked] = useState(false);
   const [reposted, setReposted] = useState(initialReposted || false);
   const [repostCount, setRepostCount] = useState(initialReposts || 0);
   const [following, setFollowing] = useState(false);
-  const [voteLoading, setVoteLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState(null);
@@ -46,19 +43,6 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   }, [user, post.owner_id, isOwner]);
   const displayName = post.owner?.full_name || post.owner?.username || post.owner?.email?.split('@')[0] || 'User';
   const username = post.owner?.username || post.owner?.email?.split('@')[0] || 'user';
-
-  const handleVote = async (e) => {
-    e.stopPropagation();
-    if (voteLoading || !user) { if (!user) toast.error('Sign in to like'); return; }
-    setVoteLoading(true);
-    const dir = voted ? 0 : 1;
-    try {
-      await castVote(post.id, dir);
-      setVoted(!voted);
-      setVotes(v => v + (dir === 1 ? 1 : -1));
-    } catch { toast.error('Failed'); }
-    finally { setVoteLoading(false); }
-  };
 
   const handleBookmark = async (e) => {
     e.stopPropagation();
@@ -215,11 +199,7 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
 
       <div style={{ paddingLeft: '46px', marginTop: '14px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <button onClick={handleVote} disabled={voteLoading}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: voted ? 'var(--color-gold)' : 'var(--color-text-muted)' }}>
-            <Heart size={16} strokeWidth={1.5} fill={voted ? 'var(--color-gold)' : 'none'} />
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{votes}</span>
-          </button>
+          <ReactionPicker postId={post.id} />
           <button onClick={e => { e.stopPropagation(); navigate(`/posts/${post.id}`); }}
             style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--color-text-muted)' }}>
             <MessageCircle size={16} strokeWidth={1.5} />

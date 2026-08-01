@@ -127,3 +127,13 @@ class PolishTitleResponse(BaseModel):
 
 class CoachRequest(BaseModel):
     content: str
+
+class ReactionCreate(BaseModel):
+    post_id: int
+    reaction_type: str
+
+class ReactionCountsResponse(BaseModel):
+    insightful: int = 0
+    agreed: int = 0
+    debatable: int = 0
+    user_reaction: Optional[str] = None

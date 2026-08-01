@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play } from 'lucide-react';
 import ColorThief from 'color-thief-browser';
 import { getPost, deletePost, summarizePost } from '../api/posts';
-import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
 import { getComments, createComment } from '../api/comments';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { logPassageHighlight } from '../api/analytics';
+import ReactionPicker from '../components/ReactionPicker';
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -31,10 +31,7 @@ export default function PostDetailPage() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [voted, setVoted] = useState(false);
-  const [votes, setVotes] = useState(0);
   const [bookmarked, setBookmarked] = useState(false);
-  const [voteLoading, setVoteLoading] = useState(false);
   const [comments, setComments] = useState([]);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
@@ -68,8 +65,6 @@ export default function PostDetailPage() {
           getComments(id).catch(() => ({ data: [] })),
         ]);
         setData(postRes.data);
-        setVotes(postRes.data.votes);
-        setVoted(postRes.data.has_voted);
         setComments(commentsRes.data || []);
         if (user) {
           getBookmarkStatus(id).then(r => setBookmarked(r.data.bookmarked)).catch(() => {});
@@ -240,17 +235,7 @@ export default function PostDetailPage() {
   };
   const accentRGB = accentColor ?? '184, 148, 46'; // fallback = gold
 
-  const handleVote = async () => {
-    if (voteLoading || !user) { if (!user) toast.error('Sign in to like'); return; }
-    setVoteLoading(true);
-    const dir = voted ? 0 : 1;
-    try {
-      await castVote(data.Post.id, dir);
-      setVoted(!voted);
-      setVotes(v => v + (dir === 1 ? 1 : -1));
-    } catch { toast.error('Failed'); }
-    finally { setVoteLoading(false); }
-  };
+
 
   const handleBookmark = async () => {
     if (!user) { toast.error('Sign in to save'); return; }
@@ -440,20 +425,13 @@ export default function PostDetailPage() {
         <footer style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', gap: '24px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 600 }}>{votes}</span>
-              <span className="text-label" style={{ fontSize: '10px' }}>Likes</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 600 }}>{comments.length}</span>
               <span className="text-label" style={{ fontSize: '10px' }}>Comments</span>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '20px', alignItems: 'center', color: 'var(--color-text-muted)' }}>
-            <button onClick={handleVote} disabled={voteLoading} className="btn-icon"
-              style={{ color: voted ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px' }}>
-              <Heart size={20} strokeWidth={1.5} fill={voted ? 'var(--color-accent)' : 'none'} />
-            </button>
+            <ReactionPicker postId={Post.id} />
             <button className="btn-icon" style={{ width: '36px', height: '36px' }}>
               <MessageCircle size={20} strokeWidth={1.5} />
             </button>
