@@ -132,7 +132,7 @@ export default function PostFormPage() {
     };
   }, []);
 
-  const triggerCoach = async (content) => {
+  async function triggerCoach(content) {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -186,7 +186,7 @@ export default function PostFormPage() {
               } else if (data.error) {
                 setCoachFeedback(data.error);
               }
-            } catch (err) {
+            } catch {
               // skip
             }
           }
@@ -199,7 +199,7 @@ export default function PostFormPage() {
         setCoachFeedback('Connection interrupted. Please try again.');
       }
     }
-  };
+  }
 
   const handleCopyFeedback = () => {
     if (!coachFeedback) return;

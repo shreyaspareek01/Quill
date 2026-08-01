@@ -86,12 +86,7 @@ export default function PostDetailPage() {
       if (!el) return;
       const scrolled = Math.max(0, -el.getBoundingClientRect().top);
       const total = el.offsetHeight - window.innerHeight;
-      let currentProgress = 0;
-      if (total <= 0) {
-        currentProgress = 100;
-      } else {
-        currentProgress = Math.min(100, (scrolled / total) * 100);
-      }
+      const currentProgress = total <= 0 ? 100 : Math.min(100, (scrolled / total) * 100);
       setReadProgress(currentProgress);
       maxProgressRef.current = Math.max(maxProgressRef.current, currentProgress);
     };
@@ -235,7 +230,11 @@ export default function PostDetailPage() {
   const handleShare = async () => {
     const url = `${window.location.origin}/posts/${data.Post.id}`;
     if (navigator.share) {
-      try { await navigator.share({ title: data.Post.title, url }); } catch {}
+      try {
+        await navigator.share({ title: data.Post.title, url });
+      } catch (err) {
+        console.debug('Share failed or cancelled:', err);
+      }
     } else {
       await navigator.clipboard.writeText(url);
       toast.success('Link copied');

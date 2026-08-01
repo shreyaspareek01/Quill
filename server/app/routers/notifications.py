@@ -163,6 +163,8 @@ async def notification_stream(
             db_session.close()
 
         while True:
+            if await request.is_disconnected():
+                break
             await asyncio.sleep(4)
             db_session = SessionLocal()
             try:

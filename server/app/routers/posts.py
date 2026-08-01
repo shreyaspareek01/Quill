@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db 
 from .. import models,oauth2
 from ..config import settings
-from fastapi import status,Response,APIRouter,Depends,Query
+from fastapi import status,Response,APIRouter,Depends,Query,Request
 from fastapi.exceptions import HTTPException
 from typing import Optional
 
@@ -42,8 +42,8 @@ async def generate_post_embedding(title: str, content: str) -> Optional[list[flo
 router = APIRouter(prefix="/posts",tags=["Posts"])
 
 def _post_query_base(db, user_id):
-    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id).subquery()
-    reposted_subquery = db.query(models.Repost.post_id).filter(models.Repost.user_id == user_id).subquery()
+    voted_subquery = db.query(models.Vote.post_id).filter(models.Vote.user_id == user_id)
+    reposted_subquery = db.query(models.Repost.post_id).filter(models.Repost.user_id == user_id)
     comment_subquery = db.query(func.count(models.Comment.id)).filter(models.Comment.post_id == models.Post.id).correlate(models.Post).scalar_subquery()
     repost_subquery = db.query(func.count(models.Repost.post_id)).filter(models.Repost.post_id == models.Post.id).correlate(models.Post).scalar_subquery()
     base = db.query(
@@ -375,7 +375,7 @@ Output only the polished title, nothing else."""
     return {"title": polished}
 
 @router.post("/coach")
-async def post_coach(req: CoachRequest, user: models.User = Depends(oauth2.get_current_user)):
+async def post_coach(req: CoachRequest, request: Request, user: models.User = Depends(oauth2.get_current_user)):
     gemini_key = settings.gemini_api_key
     if not gemini_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
@@ -410,6 +410,8 @@ Draft Content:
                     return
                 
                 async for line in response.aiter_lines():
+                    if await request.is_disconnected():
+                        break
                     if line.startswith("data:"):
                         try:
                             # Strip "data:" prefix and deserialize

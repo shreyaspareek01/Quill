@@ -103,7 +103,11 @@ export default function PostCard({ post, votes: initialVotes, hasVoted: initialV
   const handleShare = async (e) => {
     e.stopPropagation();
     if (navigator.share) {
-      try { await navigator.share({ title: post.title, url: `${window.location.origin}/posts/${post.id}` }); } catch {}
+      try {
+        await navigator.share({ title: post.title, url: `${window.location.origin}/posts/${post.id}` });
+      } catch (err) {
+        console.debug('Share failed or cancelled:', err);
+      }
     } else {
       await navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
       toast.success('Link copied');

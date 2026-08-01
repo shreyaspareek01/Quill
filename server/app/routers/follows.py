@@ -11,7 +11,7 @@ router = APIRouter(prefix="/follows", tags=["Follows"])
 def get_recommendations(
     limit: int = 5,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(oauth2.get_current_user),
+    current_user: models.User = Depends(oauth2.get_optional_user),
 ):
     """
     Two-hop graph traversal over the follows adjacency table.
@@ -23,6 +23,25 @@ def get_recommendations(
 
     This mirrors the core idea behind Twitter/LinkedIn PYMK at the query level.
     """
+    if not current_user:
+        # Return top followed users globally for unauthenticated visitors
+        sql = text("""
+            SELECT
+                u.id,
+                u.username,
+                u.full_name,
+                u.avatar_url,
+                u.bio,
+                COUNT(f.follower_id) AS mutual_count
+            FROM users u
+            LEFT JOIN follows f ON f.following_id = u.id
+            GROUP BY u.id, u.username, u.full_name, u.avatar_url, u.bio
+            ORDER BY mutual_count DESC
+            LIMIT :lim
+        """)
+        rows = db.execute(sql, {"lim": limit}).mappings().all()
+        return [dict(row) for row in rows]
+
     sql = text("""
         SELECT
             u.id,

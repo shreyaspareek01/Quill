@@ -128,10 +128,9 @@ export default function RightSidebar() {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) return;
     // Graph-based recommendations: 2-hop traversal returns users ranked by
     // how many of your followed users also follow them (mutual_count).
-    // Falls back to most-followed users when social graph is sparse.
+    // Falls back to most-followed users when social graph is sparse or user is logged out.
     getRecommendations(5)
       .then(({ data }) => setWriters(data))
       .catch(() => {});

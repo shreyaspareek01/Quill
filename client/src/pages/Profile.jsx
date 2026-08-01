@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Link as LinkIcon, Calendar, Feather, ArrowLeft } from 'lucide-react';
+import { MapPin, Link as LinkIcon, Feather, ArrowLeft } from 'lucide-react';
 import { getUser } from '../api/users';
 import { getUserPosts } from '../api/posts';
 import { getUserReposts } from '../api/reposts';
@@ -53,7 +53,9 @@ export default function ProfilePage() {
       try {
         const { data } = await getUserReposts(parseInt(id));
         setReposts(data);
-      } catch {}
+      } catch (err) {
+        console.error(err);
+      }
       finally { setRepostLoading(false); }
     })();
   }, [activeTab, id, reposts.length]);
