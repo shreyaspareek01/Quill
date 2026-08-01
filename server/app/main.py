@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine 
-from .routers import posts,users,auth,vote,uploads,follows,comments,bookmarks,reports,reposts,notifications
+from .routers import posts,users,auth,vote,uploads,follows,comments,bookmarks,reports,reposts,notifications,analytics
 
 
 # models.Base.metadata.create_all(bind=engine)
@@ -28,6 +28,7 @@ app.include_router(bookmarks.router)
 app.include_router(reports.router)
 app.include_router(reposts.router)
 app.include_router(notifications.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")

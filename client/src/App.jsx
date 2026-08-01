@@ -18,6 +18,7 @@ import ExplorePage     from './pages/Explore';
 import NotificationsPage from './pages/Notifications';
 import EditProfilePage from './pages/EditProfile';
 import FollowersListPage from './pages/FollowersList';
+import AnalyticsPage from './pages/Analytics';
 import NotFoundPage    from './pages/NotFound';
 
 const AuthenticatedLayout = ({ children }) => (
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/profile/:id/followers" element={<AuthenticatedLayout><FollowersListPage /></AuthenticatedLayout>} />
                 <Route path="/profile/:id/following" element={<AuthenticatedLayout><FollowersListPage /></AuthenticatedLayout>} />
                 <Route path="/bookmarks" element={<AuthenticatedLayout><BookmarksPage /></AuthenticatedLayout>} />
+                <Route path="/analytics" element={<AuthenticatedLayout><AnalyticsPage /></AuthenticatedLayout>} />
                 <Route path="/settings/edit" element={<AuthenticatedLayout><EditProfilePage /></AuthenticatedLayout>} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

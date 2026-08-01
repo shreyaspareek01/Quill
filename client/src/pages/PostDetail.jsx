@@ -8,6 +8,7 @@ import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmark
 import { getComments, createComment } from '../api/comments';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { logPassageHighlight } from '../api/analytics';
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -76,6 +77,8 @@ export default function PostDetailPage() {
   }, [id, user, navigate, toast]);
 
   // Reading progress scroll listener
+  const maxProgressRef = useRef(0);
+
   useEffect(() => {
     if (!data) return;
     const handleScroll = () => {
@@ -83,13 +86,44 @@ export default function PostDetailPage() {
       if (!el) return;
       const scrolled = Math.max(0, -el.getBoundingClientRect().top);
       const total = el.offsetHeight - window.innerHeight;
-      if (total <= 0) { setReadProgress(100); return; }
-      setReadProgress(Math.min(100, (scrolled / total) * 100));
+      let currentProgress = 0;
+      if (total <= 0) {
+        currentProgress = 100;
+      } else {
+        currentProgress = Math.min(100, (scrolled / total) * 100);
+      }
+      setReadProgress(currentProgress);
+      maxProgressRef.current = Math.max(maxProgressRef.current, currentProgress);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, [data]);
+
+  useEffect(() => {
+    const postId = id;
+    const handleUnload = () => {
+      const token = localStorage.getItem('quill_token');
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      fetch(`${baseUrl}/analytics/posts/${postId}/view`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ read_pct: Math.round(maxProgressRef.current) }),
+        keepalive: true,
+      });
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      handleUnload();
+    };
+  }, [id]);
 
   // Dominant color extraction from cover image
   const handleCoverLoad = useCallback(() => {
@@ -132,10 +166,11 @@ export default function PostDetailPage() {
     if (!tooltip) return;
     const updated = highlights.includes(tooltip.text) ? highlights : [...highlights, tooltip.text];
     saveHighlights(updated);
+    logPassageHighlight(id, tooltip.text).catch(() => {});
     toast.success('Highlighted!');
     window.getSelection()?.removeAllRanges();
     setTooltip(null);
-  }, [tooltip, highlights, saveHighlights, toast]);
+  }, [id, tooltip, highlights, saveHighlights, toast]);
 
   // Dismiss tooltip on outside click
   useEffect(() => {

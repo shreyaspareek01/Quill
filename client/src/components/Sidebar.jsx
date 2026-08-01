@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, Bell, Bookmark, User, PenTool, Feather, LogOut } from 'lucide-react';
+import { Home, Compass, Bell, Bookmark, User, PenTool, Feather, LogOut, BarChart2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 
@@ -14,6 +14,7 @@ export default function Sidebar() {
     { name: 'Explore', path: '/explore', icon: Compass },
     { name: 'Notifications', path: '/notifications', icon: Bell, badgeCount: unreadCount },
     { name: 'Bookmarks', path: '/bookmarks', icon: Bookmark },
+    { name: 'Analytics', path: '/analytics', icon: BarChart2 },
     { name: 'Profile', path: `/profile/${user?.id}`, icon: User },
   ];
 
