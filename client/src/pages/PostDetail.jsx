@@ -337,6 +337,20 @@ export default function PostDetailPage() {
           </div>
         </header>
 
+        {Post.image_url && (
+          <div style={{ marginBottom: '32px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-accent-border)' }}>
+            <img
+              ref={coverImgRef}
+              src={Post.image_url}
+              alt=""
+              loading="lazy"
+              crossOrigin="anonymous"
+              onLoad={handleCoverLoad}
+              style={{ width: '100%', display: 'block' }}
+            />
+          </div>
+        )}
+
         <div
           ref={contentRef}
           onMouseUp={handleTextSelect}
@@ -363,20 +377,6 @@ export default function PostDetailPage() {
               <Highlighter size={13} strokeWidth={2} />
               <span>Highlight</span>
             </button>
-          </div>
-        )}
-
-        {Post.image_url && (
-          <div style={{ margin: '40px 0', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-accent-border)' }}>
-            <img
-              ref={coverImgRef}
-              src={Post.image_url}
-              alt=""
-              loading="lazy"
-              crossOrigin="anonymous"
-              onLoad={handleCoverLoad}
-              style={{ width: '100%', display: 'block' }}
-            />
           </div>
         )}
 
