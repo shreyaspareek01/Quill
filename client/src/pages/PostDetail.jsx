@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play } from 'lucide-react';
 import ColorThief from 'color-thief-browser';
 import { getPost, deletePost, summarizePost } from '../api/posts';
 import { castVote } from '../api/votes';
@@ -47,6 +47,9 @@ export default function PostDetailPage() {
   const [readProgress, setReadProgress] = useState(0);
   const articleRef = useRef(null);
   const coverImgRef = useRef(null);
+  // — Commit 3: Text-to-Speech States —
+  const [speaking, setSpeaking] = useState(false);
+  const [speechPaused, setSpeechPaused] = useState(false);
 
   // — Commit 2: Inline Annotations —
   const [tooltip, setTooltip] = useState(null); // { x, y, text }
@@ -193,6 +196,48 @@ export default function PostDetailPage() {
     });
   }, [highlights]);
 
+  // — Commit 3: Text-to-Speech logic —
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  const handleToggleSpeak = () => {
+    if (!data) return;
+    const synth = window.speechSynthesis;
+    if (speaking) {
+      if (speechPaused) {
+        synth.resume();
+        setSpeechPaused(false);
+      } else {
+        synth.pause();
+        setSpeechPaused(true);
+      }
+    } else {
+      synth.cancel();
+      const displayName = data.Post.owner?.full_name || data.Post.owner?.username || 'User';
+      const textToSpeak = `${data.Post.title}. By ${displayName}. ${data.Post.content}`;
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.onend = () => {
+        setSpeaking(false);
+        setSpeechPaused(false);
+      };
+      utterance.onerror = () => {
+        setSpeaking(false);
+        setSpeechPaused(false);
+      };
+      synth.speak(utterance);
+      setSpeaking(true);
+      setSpeechPaused(false);
+    }
+  };
+
+  const handleStopSpeak = () => {
+    window.speechSynthesis.cancel();
+    setSpeaking(false);
+    setSpeechPaused(false);
+  };
   const accentRGB = accentColor ?? '184, 148, 46'; // fallback = gold
 
   const handleVote = async () => {
@@ -321,6 +366,19 @@ export default function PostDetailPage() {
                 <span className="text-caption" style={{ fontSize: '12px' }}>@{username}</span>
                 <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>·</span>
                 <span className="text-caption" style={{ fontSize: '12px' }}>{formatDate(Post.created_at)}</span>
+                {speaking && (
+                  <>
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>·</span>
+                    <div className={`audio-playing-indicator ${speechPaused ? 'paused' : ''}`} title="Listening to post" style={{ display: 'inline-flex', alignItems: 'flex-end', gap: '3px', height: '14px' }}>
+                      <span className="bar"></span>
+                      <span className="bar"></span>
+                      <span className="bar"></span>
+                      <span style={{ fontSize: '11px', color: 'var(--color-accent)', marginLeft: '4px', fontWeight: 500 }}>
+                        {speechPaused ? 'Paused' : 'Listening'}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             {isOwner && (
@@ -407,6 +465,21 @@ export default function PostDetailPage() {
               style={{ color: showSummary ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px' }}>
               <Sparkles size={20} strokeWidth={1.5} />
             </button>
+            <button onClick={handleToggleSpeak} className="btn-icon"
+              style={{ color: speaking ? 'var(--color-accent)' : 'inherit', width: speaking ? 'auto' : '36px', height: '36px', display: 'flex', alignItems: 'center', gap: '6px', padding: speaking ? '0 10px' : '0', borderRadius: '18px', backgroundColor: speaking ? 'var(--color-accent-subtle)' : 'transparent', border: speaking ? '1px solid var(--color-accent-border)' : 'none' }}
+              title={speaking ? (speechPaused ? 'Resume narration' : 'Pause narration') : 'Listen to post'}>
+              {speaking ? (
+                speechPaused ? <Play size={20} strokeWidth={1.5} /> : <Pause size={20} strokeWidth={1.5} />
+              ) : (
+                <Headphones size={20} strokeWidth={1.5} />
+              )}
+              {speaking && <span style={{ fontSize: '12px', fontWeight: 500 }}>{speechPaused ? 'Resume' : 'Pause'}</span>}
+            </button>
+            {speaking && (
+              <button onClick={handleStopSpeak} className="btn-icon" style={{ color: 'var(--color-destructive)', width: '36px', height: '36px' }} title="Stop narration">
+                <VolumeX size={20} strokeWidth={1.5} />
+              </button>
+            )}
             <button onClick={handleShare} className="btn-icon" style={{ marginLeft: 'auto', width: '36px', height: '36px' }}>
               <Share2 size={20} strokeWidth={1.5} />
             </button>
