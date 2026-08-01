@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play, Flame } from 'lucide-react';
 import ColorThief from 'color-thief-browser';
-import { getPost, deletePost, summarizePost } from '../api/posts';
+import { getPost, deletePost, summarizePost, sparkDiscussion } from '../api/posts';
 import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
 import { getComments, createComment } from '../api/comments';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +47,7 @@ export default function PostDetailPage() {
   // — Commit 3: Text-to-Speech States —
   const [speaking, setSpeaking] = useState(false);
   const [speechPaused, setSpeechPaused] = useState(false);
+  const [sparking, setSparking] = useState(false);
 
   // — Commit 2: Inline Annotations —
   const [tooltip, setTooltip] = useState(null); // { x, y, text }
@@ -235,6 +236,20 @@ export default function PostDetailPage() {
   };
   const accentRGB = accentColor ?? '184, 148, 46'; // fallback = gold
 
+  const handleSparkDiscussion = async () => {
+    if (sparking) return;
+    setSparking(true);
+    try {
+      const res = await sparkDiscussion(data.Post.id);
+      toast.success('Discussion sparked!');
+      setComments(prev => [...prev, res.data]);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to spark discussion');
+    } finally {
+      setSparking(false);
+    }
+  };
+
 
 
   const handleBookmark = async () => {
@@ -367,7 +382,29 @@ export default function PostDetailPage() {
               </div>
             </div>
             {isOwner && (
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={handleSparkDiscussion} 
+                  disabled={sparking}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'rgba(209, 74, 62, 0.08)',
+                    border: '1px solid rgba(209, 74, 62, 0.15)',
+                    color: 'var(--color-destructive)',
+                    fontWeight: 600,
+                    cursor: sparking ? 'not-allowed' : 'pointer',
+                    transition: 'all var(--duration-fast) var(--ease-out)',
+                  }}
+                  title="Spark discussion with Devil's Advocate AI"
+                >
+                  <Flame size={14} fill="currentColor" />
+                  {sparking ? 'Sparks Flying...' : 'Spark Discussion'}
+                </button>
                 <button className="btn-icon" onClick={() => navigate(`/posts/${Post.id}/edit`)} title="Edit">
                   <Edit2 size={16} strokeWidth={1.5} />
                 </button>
@@ -532,19 +569,46 @@ export default function PostDetailPage() {
                 <p className="text-caption">No comments yet.</p>
               </div>
             ) : (
-              comments.map(c => (
-                <div key={c.id} style={{ display: 'flex', gap: '10px' }}>
-                  <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0, background: c.user?.avatar_url ? `url(${c.user.avatar_url}) center/cover` : undefined }} />
-                  
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{c.user?.full_name || c.user?.username || c.user?.email?.split('@')[0] || 'User'}</span>
-                      <span className="text-caption" style={{ fontSize: '11px' }}>· {timeAgo(c.created_at)}</span>
+              comments.map(c => {
+                const isDevil = c.user?.username === 'devils_advocate';
+                return (
+                  <div key={c.id} style={{ 
+                    display: 'flex', 
+                    gap: '10px',
+                    padding: isDevil ? '12px 16px' : '0',
+                    borderRadius: isDevil ? 'var(--radius-md)' : '0',
+                    backgroundColor: isDevil ? 'rgba(209, 74, 62, 0.05)' : 'transparent',
+                    border: isDevil ? '1px solid rgba(209, 74, 62, 0.15)' : 'none',
+                    transition: 'all 200ms ease'
+                  }}>
+                    <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0, background: c.user?.avatar_url ? `url(${c.user.avatar_url}) center/cover` : undefined }} />
+                    
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: isDevil ? 'var(--color-destructive)' : 'inherit' }}>
+                          {c.user?.full_name || c.user?.username || c.user?.email?.split('@')[0] || 'User'}
+                        </span>
+                        {isDevil && (
+                          <span style={{ 
+                            fontSize: '9px', 
+                            fontWeight: 700, 
+                            backgroundColor: 'rgba(209, 74, 62, 0.12)', 
+                            color: 'var(--color-destructive)', 
+                            padding: '1px 5px', 
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em'
+                          }}>
+                            AI Opponent
+                          </span>
+                        )}
+                        <span className="text-caption" style={{ fontSize: '11px' }}>· {timeAgo(c.created_at)}</span>
+                      </div>
+                      <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--color-text-secondary)', fontStyle: isDevil ? 'italic' : 'normal' }}>{c.content}</p>
                     </div>
-                    <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>{c.content}</p>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>

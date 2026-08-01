@@ -3,7 +3,7 @@ import json
 from cloudinary import uploader
 import cloudinary
 from sqlalchemy import func, text
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse, CoachRequest
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse, CoachRequest, CommentResponse
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
@@ -424,4 +424,81 @@ Draft Content:
                             pass
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.post("/{id}/devil-comment", status_code=status.HTTP_201_CREATED, response_model=CommentResponse)
+async def create_devil_comment(id: int, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == id).first()
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+        
+    if post.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the post owner can spark discussion")
+        
+    groq_key = settings.groq_api_key
+    if not groq_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GROQ_API_KEY not configured")
+        
+    title = (post.title or "").strip()
+    content = (post.content or "").strip()
+    
+    prompt = f"""You are the "Devil's Advocate". Your purpose is to read the post title and content, and provide a single, highly engaging, respectful but challenging counter-argument or alternative perspective to spark critical discussion. Keep your response relatively brief (2-4 sentences or a short paragraph). Do not include any meta-text, introductory greeting like "Here's a counter-argument:" or "As the Devil's Advocate...". Respond directly with the counter-argument.
+
+Post Title: {title}
+Post Content: {content}
+"""
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 300
+            }
+        )
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI generation failed")
+            
+        res_json = response.json()
+        devil_response = res_json["choices"][0]["message"]["content"].strip()
+
+    devil_user = db.query(models.User).filter(models.User.email == "devilsadvocate@quill.ai").first()
+    if not devil_user:
+        devil_user = models.User(
+            email="devilsadvocate@quill.ai",
+            username="devils_advocate",
+            full_name="Devil's Advocate",
+            bio="I counter your arguments to spark critical thinking.",
+            avatar_url="https://api.dicebear.com/7.x/bottts/svg?seed=devils_advocate",
+            password="ai_system_user_secret_password"
+        )
+        db.add(devil_user)
+        db.commit()
+        db.refresh(devil_user)
+
+    new_comment = models.Comment(content=devil_response, post_id=id, user_id=devil_user.id)
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    
+    from .notifications import create_notification
+    create_notification(
+        db,
+        user_id=post.owner_id,
+        actor_id=devil_user.id,
+        type="comment",
+        post_id=post.id
+    )
+    
+    return new_comment
+
 

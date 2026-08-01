@@ -38,3 +38,6 @@ export const polishTitle = (title) =>
 
 export const getRecommendedPosts = (params = {}) =>
   api.get('/posts/recommended', { params });
+
+export const sparkDiscussion = (id) =>
+  api.post(`/posts/${id}/devil-comment`);
