@@ -88,6 +88,14 @@ def follow_user(user_id: int, db: Session = Depends(get_db), current_user: model
     follow = models.Follow(follower_id=current_user.id, following_id=user_id)
     db.add(follow)
     db.commit()
+    # Create notification for followed user
+    from .notifications import create_notification
+    create_notification(
+        db,
+        user_id=user_id,
+        actor_id=current_user.id,
+        type="follow"
+    )
     return {"message": "Now following user"}
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

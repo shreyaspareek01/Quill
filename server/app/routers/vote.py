@@ -20,6 +20,15 @@ def vote(vote:schemas.Vote,db:Session=Depends(database.get_db),user:int = Depend
         new_vote = models.Vote(post_id=vote.post_id,user_id=user.id)
         db.add(new_vote)
         db.commit()
+        # Create notification for post owner
+        from .notifications import create_notification
+        create_notification(
+            db,
+            user_id=post.owner_id,
+            actor_id=user.id,
+            type="like",
+            post_id=vote.post_id
+        )
         return {"message":"Successfully added vote!"}
     else:
         if not found_vote:

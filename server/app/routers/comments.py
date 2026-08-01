@@ -19,6 +19,17 @@ def create_comment(comment: schemas.CommentCreate, db: Session = Depends(get_db)
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+    
+    # Create notification for post owner
+    from .notifications import create_notification
+    create_notification(
+        db,
+        user_id=post.owner_id,
+        actor_id=current_user.id,
+        type="comment",
+        post_id=comment.post_id
+    )
+    
     return new_comment
 
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)

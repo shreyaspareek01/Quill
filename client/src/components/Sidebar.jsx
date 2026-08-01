@@ -1,15 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Compass, Bell, Bookmark, User, PenTool, Feather, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 
 export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const displayName = user?.full_name || user?.username || user?.email?.split('@')[0] || 'Writer';
 
   const navItems = [
     { name: 'Home', path: '/feed', icon: Home },
     { name: 'Explore', path: '/explore', icon: Compass },
+    { name: 'Notifications', path: '/notifications', icon: Bell, badgeCount: unreadCount },
     { name: 'Bookmarks', path: '/bookmarks', icon: Bookmark },
     { name: 'Profile', path: `/profile/${user?.id}`, icon: User },
   ];
@@ -40,8 +43,29 @@ export default function Sidebar() {
               onMouseEnter={e => { if (!isActive) { e.target.style.backgroundColor = 'var(--color-gold-subtle)'; e.target.style.color = 'var(--color-gold)'; }}}
               onMouseLeave={e => { if (!isActive) { e.target.style.backgroundColor = 'transparent'; e.target.style.color = 'var(--color-text-secondary)'; }}}
             >
-              <Icon size={20} strokeWidth={1.5} />
-              <span>{item.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                <Icon size={20} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+                <span>{item.name}</span>
+              </div>
+              {item.badgeCount > 0 && (
+                <span style={{
+                  backgroundColor: 'var(--color-gold)',
+                  color: 'var(--color-bg)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-full)',
+                  padding: '2px 6px',
+                  minWidth: '18px',
+                  height: '18px',
+                  lineHeight: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  {item.badgeCount}
+                </span>
+              )}
             </Link>
           );
         })}

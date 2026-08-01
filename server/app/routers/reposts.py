@@ -19,6 +19,15 @@ def repost_post(post_id: int, db: Session = Depends(get_db), current_user: model
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already reposted")
     db.add(models.Repost(user_id=current_user.id, post_id=post_id))
     db.commit()
+    # Create notification for post owner
+    from .notifications import create_notification
+    create_notification(
+        db,
+        user_id=post.owner_id,
+        actor_id=current_user.id,
+        type="repost",
+        post_id=post_id
+    )
     return {"message": "Post reposted"}
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
