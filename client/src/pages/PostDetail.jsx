@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Heart, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles } from 'lucide-react';
+import ColorThief from 'color-thief-browser';
 import { getPost, deletePost, summarizePost } from '../api/posts';
 import { castVote } from '../api/votes';
 import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
@@ -40,6 +41,12 @@ export default function PostDetailPage() {
   const [summary, setSummary] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
 
+  // — Commit 1: Dynamic Theming + Reading Progress —
+  const [accentColor, setAccentColor] = useState(null); // "r, g, b" string
+  const [readProgress, setReadProgress] = useState(0);
+  const articleRef = useRef(null);
+  const coverImgRef = useRef(null);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -59,6 +66,37 @@ export default function PostDetailPage() {
       finally { setLoading(false); }
     })();
   }, [id, user, navigate, toast]);
+
+  // Reading progress scroll listener
+  useEffect(() => {
+    if (!data) return;
+    const handleScroll = () => {
+      const el = articleRef.current;
+      if (!el) return;
+      const scrolled = Math.max(0, -el.getBoundingClientRect().top);
+      const total = el.offsetHeight - window.innerHeight;
+      if (total <= 0) { setReadProgress(100); return; }
+      setReadProgress(Math.min(100, (scrolled / total) * 100));
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [data]);
+
+  // Dominant color extraction from cover image
+  const handleCoverLoad = useCallback(() => {
+    const img = coverImgRef.current;
+    if (!img) return;
+    try {
+      const ct = new ColorThief();
+      const [r, g, b] = ct.getColor(img);
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      // Filter out colours that are too dark or too washed out
+      if (lum > 0.1 && lum < 0.92) setAccentColor(`${r}, ${g}, ${b}`);
+    } catch { /* cross-origin or tiny image — silently skip */ }
+  }, []);
+
+  const accentRGB = accentColor ?? '184, 148, 46'; // fallback = gold
 
   const handleVote = async () => {
     if (voteLoading || !user) { if (!user) toast.error('Sign in to like'); return; }
@@ -139,26 +177,44 @@ export default function PostDetailPage() {
 
   return (
     <div className="fade-in" style={{ paddingBottom: 'var(--space-80)' }}>
+      {/* ─── Reading progress bar ─── */}
+      <div
+        className="reading-progress-bar"
+        style={{
+          width: `${readProgress}%`,
+          background: `linear-gradient(90deg, rgb(${accentRGB}), rgba(${accentRGB}, 0.35))`,
+        }}
+      />
+
       <button onClick={() => navigate(-1)}
         style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-muted)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', marginBottom: '24px' }}>
         <ArrowLeft size={16} strokeWidth={1.5} />
         <span>Back</span>
       </button>
 
-      <article style={{ maxWidth: 'var(--shell-content-max)', margin: '0 auto' }}>
+      <article
+        ref={articleRef}
+        style={{
+          maxWidth: 'var(--shell-content-max)', margin: '0 auto',
+          // Inject accent CSS variables scoped to this article
+          '--color-accent': `rgb(${accentRGB})`,
+          '--color-accent-subtle': `rgba(${accentRGB}, 0.09)`,
+          '--color-accent-border': `rgba(${accentRGB}, 0.25)`,
+        }}
+      >
         <header style={{ marginBottom: '32px' }}>
           {Post.title && (
             <h1 className="font-serif" style={{ fontSize: 'var(--post-title-size)', lineHeight: 1.15, letterSpacing: 'var(--ls-tight)', marginBottom: '20px' }}>
               {Post.title}
             </h1>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '16px', borderBottom: '2px solid var(--color-accent-border)' }}>
             <div className="avatar avatar-md" onClick={() => navigate(`/profile/${Post.owner_id}`)} style={{ cursor: 'pointer', background: Post.owner?.avatar_url ? `url(${Post.owner.avatar_url}) center/cover` : undefined }} />
             
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '16px', fontWeight: 600 }}>{displayName}</span>
-                <Feather size={11} strokeWidth={2} style={{ color: 'var(--color-gold)' }} />
+                <Feather size={11} strokeWidth={2} style={{ color: 'var(--color-accent)' }} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                 <span className="text-caption" style={{ fontSize: '12px' }}>@{username}</span>
@@ -186,8 +242,16 @@ export default function PostDetailPage() {
         </div>
 
         {Post.image_url && (
-          <div style={{ margin: '40px 0', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            <img src={Post.image_url} alt="" loading="lazy" style={{ width: '100%', display: 'block' }} />
+          <div style={{ margin: '40px 0', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-accent-border)' }}>
+            <img
+              ref={coverImgRef}
+              src={Post.image_url}
+              alt=""
+              loading="lazy"
+              crossOrigin="anonymous"
+              onLoad={handleCoverLoad}
+              style={{ width: '100%', display: 'block' }}
+            />
           </div>
         )}
 
@@ -205,36 +269,37 @@ export default function PostDetailPage() {
 
           <div style={{ display: 'flex', gap: '20px', alignItems: 'center', color: 'var(--color-text-muted)' }}>
             <button onClick={handleVote} disabled={voteLoading} className="btn-icon"
-              style={{ color: voted ? 'var(--color-gold)' : 'inherit', width: '36px', height: '36px' }}>
-              <Heart size={20} strokeWidth={1.5} fill={voted ? 'var(--color-gold)' : 'none'} />
+              style={{ color: voted ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px' }}>
+              <Heart size={20} strokeWidth={1.5} fill={voted ? 'var(--color-accent)' : 'none'} />
             </button>
             <button className="btn-icon" style={{ width: '36px', height: '36px' }}>
               <MessageCircle size={20} strokeWidth={1.5} />
             </button>
             <button onClick={handleBookmark} className="btn-icon"
-              style={{ color: bookmarked ? 'var(--color-gold)' : 'inherit', width: '36px', height: '36px' }}>
-              <Bookmark size={20} strokeWidth={1.5} fill={bookmarked ? 'var(--color-gold)' : 'none'} />
+              style={{ color: bookmarked ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px' }}>
+              <Bookmark size={20} strokeWidth={1.5} fill={bookmarked ? 'var(--color-accent)' : 'none'} />
             </button>
             <button onClick={handleSummarize} disabled={summarizing} className="btn-icon"
-              style={{ color: showSummary ? 'var(--color-gold)' : 'inherit', width: '36px', height: '36px' }}>
+              style={{ color: showSummary ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px' }}>
               <Sparkles size={20} strokeWidth={1.5} />
             </button>
             <button onClick={handleShare} className="btn-icon" style={{ marginLeft: 'auto', width: '36px', height: '36px' }}>
               <Share2 size={20} strokeWidth={1.5} />
             </button>
           </div>
+
           {showSummary && summary && (
             <div style={{
               marginTop: '20px', padding: '16px 20px',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'rgba(184, 148, 46, 0.06)',
-              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-accent-subtle)',
+              border: '1px solid var(--color-accent-border)',
               fontSize: '14px', lineHeight: 1.7,
               color: 'var(--color-text-secondary)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <Sparkles size={14} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
-                <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', color: 'var(--color-gold)' }}>AI Summary</span>
+                <Sparkles size={14} strokeWidth={1.5} style={{ color: 'var(--color-accent)' }} />
+                <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 'var(--ls-wide)', color: 'var(--color-accent)' }}>AI Summary</span>
               </div>
               <p style={{ margin: 0 }}>{summary}</p>
             </div>
@@ -243,11 +308,11 @@ export default function PostDetailPage() {
             <div style={{
               marginTop: '20px', padding: '16px 20px',
               borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'rgba(184, 148, 46, 0.06)',
-              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-accent-subtle)',
+              border: '1px solid var(--color-accent-border)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={14} strokeWidth={1.5} style={{ color: 'var(--color-gold)' }} />
+                <Sparkles size={14} strokeWidth={1.5} style={{ color: 'var(--color-accent)' }} />
                 <div className="skeleton" style={{ height: '14px', width: '70%', borderRadius: '4px' }} />
               </div>
             </div>
