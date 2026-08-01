@@ -8,3 +8,6 @@ export const unfollowUser = (userId) =>
 
 export const getFollowStatus = (userId) =>
   api.get(`/follows/${userId}/status`);
+
+export const getRecommendations = (limit = 5) =>
+  api.get('/follows/recommendations', { params: { limit } });

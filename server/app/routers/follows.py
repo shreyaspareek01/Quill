@@ -1,9 +1,79 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from ..database import get_db
 from .. import models, oauth2
 from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter(prefix="/follows", tags=["Follows"])
+
+
+@router.get("/recommendations")
+def get_recommendations(
+    limit: int = 5,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(oauth2.get_current_user),
+):
+    """
+    Two-hop graph traversal over the follows adjacency table.
+
+    Finds users who are followed by people you follow (2nd-degree connections)
+    but whom you do not yet follow yourself.
+    Ranks candidates by how many of your followed users also follow them
+    (mutual_count), which serves as a proxy for relevance / social proof.
+
+    This mirrors the core idea behind Twitter/LinkedIn PYMK at the query level.
+    """
+    sql = text("""
+        SELECT
+            u.id,
+            u.username,
+            u.full_name,
+            u.avatar_url,
+            u.bio,
+            COUNT(DISTINCT f1.follower_id) AS mutual_count
+        FROM follows f1
+        JOIN follows f2 ON f1.following_id = f2.follower_id
+        JOIN users   u  ON u.id = f2.following_id
+        WHERE
+            f1.follower_id   = :uid
+            AND f2.following_id != :uid
+            AND f2.following_id NOT IN (
+                SELECT following_id
+                FROM follows
+                WHERE follower_id = :uid
+            )
+        GROUP BY u.id, u.username, u.full_name, u.avatar_url, u.bio
+        ORDER BY mutual_count DESC
+        LIMIT :lim
+    """)
+
+    rows = db.execute(sql, {"uid": current_user.id, "lim": limit}).mappings().all()
+
+    # If the social graph is too sparse (new platform / new user), fall back
+    # to users with the most followers that the current user doesn't follow yet.
+    if not rows:
+        fallback_sql = text("""
+            SELECT
+                u.id,
+                u.username,
+                u.full_name,
+                u.avatar_url,
+                u.bio,
+                COUNT(f.follower_id) AS mutual_count
+            FROM users u
+            LEFT JOIN follows f ON f.following_id = u.id
+            WHERE
+                u.id != :uid
+                AND u.id NOT IN (
+                    SELECT following_id FROM follows WHERE follower_id = :uid
+                )
+            GROUP BY u.id, u.username, u.full_name, u.avatar_url, u.bio
+            ORDER BY mutual_count DESC
+            LIMIT :lim
+        """)
+        rows = db.execute(fallback_sql, {"uid": current_user.id, "lim": limit}).mappings().all()
+
+    return [dict(row) for row in rows]
 
 @router.post("/{user_id}", status_code=status.HTTP_201_CREATED)
 def follow_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(oauth2.get_current_user)):

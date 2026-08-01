@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Feather } from 'lucide-react';
+import { Feather, Users } from 'lucide-react';
 import { getPosts } from '../api/posts';
-import { getUsers } from '../api/users';
-import { followUser, unfollowUser, getFollowStatus } from '../api/follows';
+import { getRecommendations, followUser, unfollowUser, getFollowStatus } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -39,12 +38,13 @@ function WriterRow({ writer, currentUserId, toast }) {
 
   const displayName = writer.full_name || writer.username || writer.email?.split('@')[0] || 'Writer';
   const handle = writer.username || writer.email?.split('@')[0] || 'writer';
+  const mutualCount = writer.mutual_count || 0;
 
   return (
     <div
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '8px 0', borderBottom: '1px solid var(--color-border)',
+        padding: '10px 0', borderBottom: '1px solid var(--color-border)',
       }}
     >
       {/* Avatar */}
@@ -67,7 +67,17 @@ function WriterRow({ writer, currentUserId, toast }) {
             className="truncate">{displayName}</span>
           <Feather size={9} strokeWidth={2} style={{ color: 'var(--color-gold)', flexShrink: 0 }} />
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>@{handle}</span>
+        {/* Social proof line — the key UX signal from the graph algorithm */}
+        {mutualCount > 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+            <Users size={9} strokeWidth={2} style={{ color: 'var(--color-text-muted)' }} />
+            <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
+              {mutualCount} {mutualCount === 1 ? 'writer' : 'writers'} you follow also follow them
+            </span>
+          </div>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px', display: 'block' }}>@{handle}</span>
+        )}
       </div>
 
       {/* Follow button — hidden for own profile */}
@@ -118,12 +128,12 @@ export default function RightSidebar() {
   }, []);
 
   useEffect(() => {
-    getUsers()
-      .then(({ data }) => {
-        // Exclude self, show up to 5
-        const others = data.filter(u => u.id !== user?.id).slice(0, 5);
-        setWriters(others);
-      })
+    if (!user?.id) return;
+    // Graph-based recommendations: 2-hop traversal returns users ranked by
+    // how many of your followed users also follow them (mutual_count).
+    // Falls back to most-followed users when social graph is sparse.
+    getRecommendations(5)
+      .then(({ data }) => setWriters(data))
       .catch(() => {});
   }, [user?.id]);
 
@@ -159,7 +169,7 @@ export default function RightSidebar() {
       {/* ── Writers to Follow ── */}
       {writers.length > 0 && (
         <section style={{ marginBottom: 'var(--space-48)' }}>
-          <h3 className="text-label" style={{ marginBottom: 'var(--space-16)' }}>Writers to Follow</h3>
+          <h3 className="text-label" style={{ marginBottom: 'var(--space-16)' }}>Suggested for You</h3>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {writers.map(w => (
               <WriterRow
