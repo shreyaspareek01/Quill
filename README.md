@@ -20,8 +20,9 @@ server/  – FastAPI backend
 - **Alembic** – migrations
 - **JWT Auth** – token-based authentication via `python-jose`
 - **Cloudinary** – image uploads (avatars, covers, post images)
-- **Groq AI** – AI-powered content generation and post summarization
+- **Groq AI** – AI-powered content generation, post summarization, and translation (Llama 3.1)
 - **Gemini + Hugging Face FLUX** – AI cover image generation (Gemini crafts prompts, FLUX renders)
+- **edge-tts** – Microsoft Edge Azure Cognitive Neural Speech Synthesis
 
 ### Tables
 - `users` – profiles, auth, avatar/cover URLs
@@ -62,6 +63,8 @@ server/  – FastAPI backend
 | POST | `/posts/generate-content` | AI generate post content from title (Groq) |
 | POST | `/posts/generate-cover` | AI generate cover image from title (Gemini prompt → FLUX → Cloudinary) |
 | POST | `/posts/polish-title` | AI polish/improve a draft title (Groq) |
+| POST | `/posts/{id}/translate` | Translate post title and content into 6 languages (Groq Llama 3.1) |
+| GET | `/posts/tts` | Premium Microsoft Edge Neural voice Text-To-Speech (static response) |
 
 ### Local Setup
 
@@ -130,6 +133,19 @@ VITE_API_URL=http://localhost:8000
 ```bash
 npm run dev
 ```
+
+---
+
+## 🌐 Multilingual Translation & Neural Narration
+
+Quill supports on-demand post translation and high-fidelity narration in **6 languages** (Spanish, French, German, Japanese, Chinese, and Hindi).
+
+### Key Mechanics
+- **AI Translation**: Translates title and content using a Groq-hosted Llama 3.1 8B model. Built with custom tag-based split parsing and a fallback mechanism to preserve markdown formatting and structures (such as paragraphs and URLs) perfectly.
+- **Neural Speech Proxy Backend**: Leverages `edge-tts` to request high-fidelity, expressive Microsoft Azure neural voices matching the current translation language (e.g., `es-ES-ElviraNeural` for Spanish, `zh-CN-XiaoxiaoNeural` for Chinese).
+- **Cross-Browser Compatibility**: TTS responses are buffered on the backend to deliver a static response with a valid `Content-Length` header, preventing browser playback exceptions common with chunked streams.
+- **Multilingual Sentence Parser**: A customized, regex-based client tokenizer splits the text by sentence delimiters native to different languages (such as Chinese `。` and Hindi `।`), preventing content from being dropped.
+- ** Narration Auto-Reset**: State synchronizers listen to translation changes and immediately halt active speech context, clearing references and starting playback cleanly from the first chunk.
 
 ---
 
