@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { logPassageHighlight } from '../api/analytics';
 import { getMiniBadge } from '../components/BadgeRow';
 import ReactionPicker from '../components/ReactionPicker';
+import api from '../api/axios';
 
 function getDominantColor(imgEl) {
   try {
@@ -351,33 +352,66 @@ export default function PostDetailPage() {
 
     if (currentUseFallback) {
       // Use Edge TTS Fallback proxied via backend
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const langParam = isTranslated ? `&lang=${encodeURIComponent(translation.language)}` : '';
-      const url = `${baseUrl}/posts/tts?q=${encodeURIComponent(chunk)}${langParam}`;
-      const audio = new Audio(url);
-      audio.crossOrigin = "anonymous";
-      audioRef.current = audio;
+      api.get('/posts/tts', {
+        params: {
+          q: chunk,
+          lang: isTranslated ? translation.language : 'en'
+        },
+        responseType: 'blob'
+      })
+      .then(response => {
+        const blob = response.data;
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
 
-      audio.onended = () => {
-        chunkIndexRef.current++;
-        playNextChunkRef.current();
-      };
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          chunkIndexRef.current++;
+          playNextChunkRef.current();
+        };
 
-      audio.onerror = (e) => {
-        const mediaError = audio.error;
-        console.error('Audio fallback error details:', {
-          code: mediaError?.code,
-          message: mediaError?.message,
-          url: url,
-          event: e
+        audio.onerror = (e) => {
+          const mediaError = audio.error;
+          console.error('Audio playback error details:', {
+            code: mediaError?.code,
+            message: mediaError?.message,
+            url: audioUrl,
+            event: e
+          });
+          URL.revokeObjectURL(audioUrl);
+          toast.error('Audio playback error occurred.');
+          setSpeaking(false);
+          setSpeechPaused(false);
+          audioRef.current = null;
+        };
+
+        audio.play().catch(err => {
+          console.error('Audio play failed:', err);
+          URL.revokeObjectURL(audioUrl);
+          setSpeaking(false);
+          setSpeechPaused(false);
+          audioRef.current = null;
         });
-        setSpeaking(false);
-        setSpeechPaused(false);
-        audioRef.current = null;
-      };
-
-      audio.play().catch(err => {
-        console.error('Audio play failed:', err);
+      })
+      .catch(err => {
+        console.error('Failed to fetch audio from TTS API:', err);
+        let errorMsg = 'Failed to generate audio narration.';
+        if (err.response) {
+          // Read error message from blob response
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const parsed = JSON.parse(reader.result);
+              toast.error(`TTS Error: ${parsed.detail || errorMsg}`);
+            } catch {
+              toast.error(errorMsg);
+            }
+          };
+          reader.readAsText(err.response.data);
+        } else {
+          toast.error(errorMsg);
+        }
         setSpeaking(false);
         setSpeechPaused(false);
         audioRef.current = null;
@@ -412,7 +446,7 @@ export default function PostDetailPage() {
 
       synth.speak(utterance);
     }
-  }, [translation]);
+  }, [translation, toast]);
 
   useEffect(() => {
     playNextChunkRef.current = playNextChunk;
