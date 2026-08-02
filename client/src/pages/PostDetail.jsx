@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play, Flame } from 'lucide-react';
-import { getPost, deletePost, summarizePost, sparkDiscussion } from '../api/posts';
+import { ArrowLeft, MessageCircle, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play, Flame, Globe, Loader2 } from 'lucide-react';
+import { getPost, deletePost, summarizePost, sparkDiscussion, translatePost } from '../api/posts';
 import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
 import { getComments, createComment } from '../api/comments';
 import { useAuth } from '../context/AuthContext';
@@ -64,6 +64,64 @@ function timeAgo(d) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function cleanMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/[#*`_~]/g, '') // remove headings, bold, italic, code, strikethrough characters
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // replace links [text](url) with just text
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // replace images ![alt](url) with alt text
+    .replace(/>\s+/g, '') // remove blockquote indicators
+    .replace(/\s+/g, ' ') // normalize whitespace
+    .trim();
+}
+
+function chunkText(text, maxLength = 180) {
+  if (!text) return [];
+  
+  // Split by sentence ending punctuation across languages (English, Chinese, Hindi, etc.)
+  // and newlines, keeping the delimiters using capturing group
+  const parts = text.split(/([.!?。！?？|।\n]+)/);
+  const sentences = [];
+  
+  for (let i = 0; i < parts.length; i += 2) {
+    const content = parts[i] || '';
+    const delimiter = parts[i + 1] || '';
+    const sentence = (content + delimiter).trim();
+    if (sentence) {
+      sentences.push(sentence);
+    }
+  }
+  
+  if (sentences.length === 0) {
+    return [text.trim()];
+  }
+
+  const chunks = [];
+  for (let sentence of sentences) {
+    if (sentence.length <= maxLength) {
+      chunks.push(sentence);
+    } else {
+      let start = 0;
+      while (start < sentence.length) {
+        let chunk = sentence.substring(start, start + maxLength);
+        if (start + maxLength < sentence.length) {
+          const lastSpace = chunk.lastIndexOf(' ');
+          if (lastSpace > maxLength / 2) {
+            chunk = chunk.substring(0, lastSpace);
+          }
+        }
+        const trimmed = chunk.trim();
+        if (trimmed) {
+          chunks.push(trimmed);
+        }
+        start += chunk.length;
+      }
+    }
+  }
+  return chunks;
+}
+
+
 export default function PostDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -85,9 +143,34 @@ export default function PostDetailPage() {
   const [readProgress, setReadProgress] = useState(0);
   const articleRef = useRef(null);
   const coverImgRef = useRef(null);
-  // — Commit 3: Text-to-Speech States —
+
+  // — Translation States & Refs —
+  const [translating, setTranslating] = useState(false);
+  const [translation, setTranslation] = useState(null); // { title, content, language }
+  const [showTranslateMenu, setShowTranslateMenu] = useState(false);
+  const translateMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (translateMenuRef.current && !translateMenuRef.current.contains(event.target)) {
+        setShowTranslateMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // — Commit 3: Text-to-Speech States & Refs —
   const [speaking, setSpeaking] = useState(false);
   const [speechPaused, setSpeechPaused] = useState(false);
+  const chunksRef = useRef([]);
+  const chunkIndexRef = useRef(0);
+  const utteranceRef = useRef(null);
+  const audioRef = useRef(null);
+  const useFallbackRef = useRef(!('speechSynthesis' in window));
+  const playNextChunkRef = useRef(null);
   const [sparking, setSparking] = useState(false);
 
   // — Commit 2: Inline Annotations —
@@ -239,44 +322,167 @@ export default function PostDetailPage() {
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
+      if (utteranceRef.current) {
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
+        utteranceRef.current = null;
+      }
+      if (audioRef.current) {
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
   }, []);
+
+  const playNextChunk = useCallback(() => {
+    if (chunkIndexRef.current >= chunksRef.current.length) {
+      setSpeaking(false);
+      setSpeechPaused(false);
+      utteranceRef.current = null;
+      audioRef.current = null;
+      return;
+    }
+
+    const chunk = chunksRef.current[chunkIndexRef.current];
+    const isTranslated = !!translation;
+    const currentUseFallback = useFallbackRef.current || isTranslated;
+
+    if (currentUseFallback) {
+      // Use Edge TTS Fallback proxied via backend
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const langParam = isTranslated ? `&lang=${encodeURIComponent(translation.language)}` : '';
+      const url = `${baseUrl}/posts/tts?q=${encodeURIComponent(chunk)}${langParam}`;
+      const audio = new Audio(url);
+      audio.crossOrigin = "anonymous";
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        chunkIndexRef.current++;
+        playNextChunkRef.current();
+      };
+
+      audio.onerror = (e) => {
+        const mediaError = audio.error;
+        console.error('Audio fallback error details:', {
+          code: mediaError?.code,
+          message: mediaError?.message,
+          url: url,
+          event: e
+        });
+        setSpeaking(false);
+        setSpeechPaused(false);
+        audioRef.current = null;
+      };
+
+      audio.play().catch(err => {
+        console.error('Audio play failed:', err);
+        setSpeaking(false);
+        setSpeechPaused(false);
+        audioRef.current = null;
+      });
+    } else {
+      // Use standard Web Speech API
+      const synth = window.speechSynthesis;
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utteranceRef.current = utterance;
+
+      utterance.onend = () => {
+        chunkIndexRef.current++;
+        playNextChunkRef.current();
+      };
+
+      utterance.onerror = (event) => {
+        if (event.error === 'synthesis-failed' || event.error === 'language-unavailable') {
+          console.warn(`Web Speech API failed with "${event.error}". Falling back to Google Translate TTS API...`);
+          useFallbackRef.current = true;
+          // Replay this chunk with fallback
+          playNextChunkRef.current();
+          return;
+        }
+
+        if (event.error !== 'interrupted' && event.error !== 'canceled') {
+          console.error('SpeechSynthesisUtterance error:', event);
+          setSpeaking(false);
+          setSpeechPaused(false);
+          utteranceRef.current = null;
+        }
+      };
+
+      synth.speak(utterance);
+    }
+  }, [translation]);
+
+  useEffect(() => {
+    playNextChunkRef.current = playNextChunk;
+  }, [playNextChunk]);
 
   const handleToggleSpeak = () => {
     if (!data) return;
     const synth = window.speechSynthesis;
     if (speaking) {
       if (speechPaused) {
-        synth.resume();
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {});
+        } else {
+          synth.resume();
+        }
         setSpeechPaused(false);
       } else {
-        synth.pause();
+        if (audioRef.current) {
+          audioRef.current.pause();
+        } else {
+          synth.pause();
+        }
         setSpeechPaused(true);
       }
     } else {
       synth.cancel();
+      if (audioRef.current) {
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      
       const displayName = data.Post.owner?.full_name || data.Post.owner?.username || 'User';
-      const textToSpeak = `${data.Post.title}. By ${displayName}. ${data.Post.content}`;
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.onend = () => {
-        setSpeaking(false);
-        setSpeechPaused(false);
-      };
-      utterance.onerror = () => {
-        setSpeaking(false);
-        setSpeechPaused(false);
-      };
-      synth.speak(utterance);
+      const cleanContent = cleanMarkdown(displayContent);
+      const textToSpeak = `${displayTitle}. By ${displayName}. ${cleanContent}`;
+      
+      chunksRef.current = chunkText(textToSpeak);
+      chunkIndexRef.current = 0;
+      
       setSpeaking(true);
       setSpeechPaused(false);
+      playNextChunkRef.current();
     }
   };
 
   const handleStopSpeak = () => {
+    if (utteranceRef.current) {
+      utteranceRef.current.onend = null;
+      utteranceRef.current.onerror = null;
+      utteranceRef.current = null;
+    }
+    if (audioRef.current) {
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     window.speechSynthesis.cancel();
+    chunksRef.current = [];
+    chunkIndexRef.current = 0;
     setSpeaking(false);
     setSpeechPaused(false);
   };
+
+  // Automatically stop narration when translation/language changes
+  useEffect(() => {
+    handleStopSpeak();
+  }, [translation]);
+
   const accentRGB = accentColor ?? '184, 148, 46'; // fallback = gold
 
   const handleSparkDiscussion = async () => {
@@ -313,6 +519,26 @@ export default function PostDetailPage() {
       setShowSummary(true);
     } catch { toast.error('AI summary unavailable'); }
     finally { setSummarizing(false); }
+  };
+
+  const handleTranslate = async (langName) => {
+    handleStopSpeak();
+    setShowTranslateMenu(false);
+    setTranslating(true);
+    try {
+      const res = await translatePost(data.Post.id, langName);
+      setTranslation({
+        title: res.data.title,
+        content: res.data.content,
+        language: langName
+      });
+      toast.success(`Translated to ${langName}`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || 'Translation failed');
+    } finally {
+      setTranslating(false);
+    }
   };
 
   const handleShare = async () => {
@@ -360,6 +586,8 @@ export default function PostDetailPage() {
 
   if (!data) return null;
   const { Post } = data;
+  const displayTitle = translation ? translation.title : Post.title;
+  const displayContent = translation ? translation.content : Post.content;
   const isOwner = user?.id === Post.owner_id;
   const displayName = Post.owner?.full_name || Post.owner?.username || Post.owner?.email?.split('@')[0] || 'User';
   const username = Post.owner?.username || Post.owner?.email?.split('@')[0] || 'user';
@@ -392,9 +620,42 @@ export default function PostDetailPage() {
         }}
       >
         <header style={{ marginBottom: '32px' }}>
-          {Post.title && (
+          {translation && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--color-accent-subtle)',
+              border: '1px solid var(--color-accent-border)',
+              marginBottom: '20px',
+              fontSize: '13px',
+              color: 'var(--color-text-secondary)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Globe size={16} style={{ color: 'var(--color-accent)' }} />
+                <span>Translated to <strong>{translation.language}</strong></span>
+              </div>
+              <button 
+                onClick={() => setTranslation(null)} 
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--color-accent)', 
+                  fontWeight: 600, 
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  padding: 0
+                }}
+              >
+                Show Original
+              </button>
+            </div>
+          )}
+          {displayTitle && (
             <h1 className="font-serif" style={{ fontSize: 'var(--post-title-size)', lineHeight: 1.15, letterSpacing: 'var(--ls-tight)', marginBottom: '20px' }}>
-              {Post.title}
+              {displayTitle}
             </h1>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '16px', borderBottom: '2px solid var(--color-accent-border)' }}>
@@ -489,7 +750,7 @@ export default function PostDetailPage() {
           onMouseUp={handleTextSelect}
           style={{ fontSize: 'var(--post-content-size)', lineHeight: 1.8, color: 'var(--color-text-secondary)', marginBottom: '40px', userSelect: 'text', cursor: 'text', position: 'relative' }}
         >
-          {Post.content.split('\n').map((para, i) =>
+          {displayContent.split('\n').map((para, i) =>
             para.trim() ? <p key={i} style={{ marginBottom: '1.5em' }}>{renderContent(para)}</p> : <br key={i} />
           )}
         </div>
@@ -534,6 +795,63 @@ export default function PostDetailPage() {
               style={{ color: showSummary ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px' }}>
               <Sparkles size={20} strokeWidth={1.5} />
             </button>
+            <div style={{ position: 'relative', display: 'inline-block' }} ref={translateMenuRef}>
+              <button 
+                onClick={() => setShowTranslateMenu(!showTranslateMenu)} 
+                disabled={translating}
+                className="btn-icon"
+                style={{ color: translation ? 'var(--color-accent)' : 'inherit', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Translate post"
+              >
+                {translating ? (
+                  <Loader2 size={20} strokeWidth={1.5} className="spin" style={{ color: 'var(--color-accent)' }} />
+                ) : (
+                  <Globe size={20} strokeWidth={1.5} />
+                )}
+              </button>
+              
+              {showTranslateMenu && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '44px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: 'var(--color-bg-card, #1e1e24)',
+                  border: '1px solid var(--color-border, #2d2d34)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  boxShadow: 'var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.3))',
+                  padding: '6px 0',
+                  zIndex: 100,
+                  minWidth: '120px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}>
+                  {['Spanish', 'French', 'German', 'Japanese', 'Chinese', 'Hindi'].map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => handleTranslate(lang)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        padding: '8px 16px',
+                        color: translation?.language === lang ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                        fontSize: '13px',
+                        fontWeight: translation?.language === lang ? 600 : 400,
+                        cursor: 'pointer',
+                        width: '100%',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--color-bg-hover, rgba(255,255,255,0.05))'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={handleToggleSpeak} className="btn-icon"
               style={{ color: speaking ? 'var(--color-accent)' : 'inherit', width: speaking ? 'auto' : '36px', height: '36px', display: 'flex', alignItems: 'center', gap: '6px', padding: speaking ? '0 10px' : '0', borderRadius: '18px', backgroundColor: speaking ? 'var(--color-accent-subtle)' : 'transparent', border: speaking ? '1px solid var(--color-accent-border)' : 'none' }}
               title={speaking ? (speechPaused ? 'Resume narration' : 'Pause narration') : 'Listen to post'}>

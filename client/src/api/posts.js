@@ -44,3 +44,7 @@ export const getTrendingPosts = (params = {}) =>
 
 export const sparkDiscussion = (id) =>
   api.post(`/posts/${id}/devil-comment`);
+
+export const translatePost = (id, targetLanguage) =>
+  api.post(`/posts/${id}/translate`, { target_language: targetLanguage });
+
