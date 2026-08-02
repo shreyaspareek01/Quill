@@ -141,3 +141,12 @@ class ReactionCountsResponse(BaseModel):
     agreed: int = 0
     debatable: int = 0
     user_reaction: Optional[str] = None
+
+
+class TranslatePostRequest(BaseModel):
+    target_language: str
+
+
+class TranslatePostResponse(BaseModel):
+    title: str
+    content: str

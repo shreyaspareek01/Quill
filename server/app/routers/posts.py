@@ -3,7 +3,7 @@ import json
 from cloudinary import uploader
 import cloudinary
 from sqlalchemy import func, text
-from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse, CoachRequest, CommentResponse
+from ..schemas import PostCreate, PostResponse, PostResponseWithVotes, PostSummaryResponse, GenerateContentRequest, GenerateContentResponse, GenerateCoverResponse, PolishTitleResponse, CoachRequest, CommentResponse, TranslatePostRequest, TranslatePostResponse
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from ..database import get_db 
@@ -179,6 +179,141 @@ async def get_trending_posts(
         models.Post.created_at.desc()
     ).limit(limit).all()
     return _format_results(results)
+
+
+@router.get("/tts")
+async def get_tts(q: str, lang: Optional[str] = "en"):
+    import edge_tts
+    # Map input language codes/names to localized high-fidelity Edge TTS neural voices
+    voice_map = {
+        "es": "es-ES-ElviraNeural",
+        "spanish": "es-ES-ElviraNeural",
+        "fr": "fr-FR-DeniseNeural",
+        "french": "fr-FR-DeniseNeural",
+        "de": "de-DE-KatjaNeural",
+        "german": "de-DE-KatjaNeural",
+        "ja": "ja-JP-NanamiNeural",
+        "japanese": "ja-JP-NanamiNeural",
+        "zh": "zh-CN-XiaoxiaoNeural",
+        "chinese": "zh-CN-XiaoxiaoNeural",
+        "hi": "hi-IN-SwaraNeural",
+        "hindi": "hi-IN-SwaraNeural",
+    }
+    target_lang = (lang or "en").lower().strip()
+    voice = voice_map.get(target_lang, "en-US-JennyNeural")
+    
+    audio_data = b""
+    try:
+        communicate = edge_tts.Communicate(q, voice)
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data += chunk["data"]
+    except Exception as e:
+        print(f"Edge TTS streaming error: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"TTS generation failed: {e}")
+
+    return Response(content=audio_data, media_type="audio/mpeg")
+
+
+@router.post("/{id}/translate", response_model=TranslatePostResponse)
+async def translate_post(id: int, req: TranslatePostRequest, db: Session = Depends(get_db)):
+    post = db.query(models.Post).filter(models.Post.id == id).first()
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id:{id} not found!")
+        
+    groq_key = settings.groq_api_key
+    if not groq_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="GROQ_API_KEY not configured")
+
+    target_language = req.target_language.strip()
+    if target_language.lower() in ["chinese", "zh"]:
+        target_language = "Chinese (Simplified)"
+
+    prompt = f"""Translate the following blog post title and content into the target language: "{target_language}".
+    
+    Translate accurately, preserving the natural flow and tone of the original text.
+    STRICTLY preserve all markdown formatting, paragraphs, headers, bold text, italics, and URLs/links in the content. Do not remove or change URLs/links.
+    
+    You must output your translation in the following exact format:
+    
+    ===TITLE===
+    [Translated Title Here]
+    
+    ===CONTENT===
+    [Translated Content Here]
+    
+    Do not add any other conversational text or introduction. Start directly with ===TITLE===.
+    
+    Original Title: {post.title or ""}
+    Original Content: {post.content or ""}
+    """
+
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            response = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama-3.1-8b-instant",
+                    "messages": [
+                        {"role": "system", "content": "You are a professional translator that translates content accurately and formats the response using the exact requested separators: ===TITLE=== and ===CONTENT===. Do not output any preamble, markdown blocks outside the tags, or conversational text."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": 4000
+                }
+            )
+            
+            if response.status_code != 200:
+                print(f"Groq API translate error: {response.text}")
+                error_detail = "AI translation failed"
+                try:
+                    err_json = response.json()
+                    error_detail = err_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    if response.text:
+                        error_detail = response.text
+                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Groq Error: {error_detail}")
+            
+            result = response.json()
+            translation_text = result["choices"][0]["message"]["content"].strip()
+            import re
+            # Split the text using any separator tag like ===TITLE===, ===Título===, ===CONTENT===, etc.
+            parts = re.split(r'===[^=\n]+===', translation_text)
+            
+            # If splitting by tags yielded at least 3 parts (before tag, title, content)
+            if len(parts) >= 3:
+                title = parts[1].strip()
+                content = parts[2].strip()
+            else:
+                # Fallback: try case-insensitive text search for TITLE/CONTENT/CONTENIDO etc.
+                parts_fallback = re.split(r'===CONTENT===|===CONTENIDO===|===CONTENU===|===INHALT===|===内容===|===विषय===', translation_text, flags=re.IGNORECASE)
+                if len(parts_fallback) >= 2:
+                    title = parts_fallback[0].replace("===TITLE=== ", "").replace("===title=== ", "").replace("===TITLE===", "").replace("===title===", "").strip()
+                    content = parts_fallback[1].strip()
+                else:
+                    # Final fallback: split by double newlines, take the first line as title, the rest as content
+                    lines = [l for l in translation_text.split("\n") if l.strip()]
+                    if len(lines) >= 2:
+                        title = lines[0].replace("===TITLE===", "").replace("===title===", "").strip()
+                        content = "\n\n".join(lines[1:]).replace("===CONTENT===", "").replace("===content===", "").strip()
+                    else:
+                        print(f"Regex parsing failed. Raw translation text: {translation_text}")
+                        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI translation output format was invalid")
+            
+            return {
+                "title": title,
+                "content": content
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Translation execution error: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
 
 @router.get("/{id}", response_model=PostResponseWithVotes)
 async def get_post(id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user)):
