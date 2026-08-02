@@ -154,6 +154,32 @@ async def get_recommended_posts(
     
     return _format_results(results)
 
+@router.get("/trending", response_model=list[PostResponseWithVotes])
+async def get_trending_posts(
+    db: Session = Depends(get_db),
+    user: Optional[models.User] = Depends(oauth2.get_optional_user),
+    limit: int = Query(10, ge=1, le=100)
+):
+    user_id = user.id if user else -1
+    
+    # Construct subqueries for comment and repost counts to use in popularity score
+    comment_subquery = db.query(func.count(models.Comment.id)).filter(models.Comment.post_id == models.Post.id).correlate(models.Post).scalar_subquery()
+    repost_subquery = db.query(func.count(models.Repost.post_id)).filter(models.Repost.post_id == models.Post.id).correlate(models.Post).scalar_subquery()
+    
+    popularity_score = (
+        func.count(models.Vote.post_id) +
+        func.coalesce(comment_subquery, 0) * 2 +
+        func.coalesce(repost_subquery, 0) * 3
+    )
+    
+    results = _post_query_base(db, user_id).filter(
+        models.Post.published == True
+    ).group_by(models.Post.id).order_by(
+        popularity_score.desc(),
+        models.Post.created_at.desc()
+    ).limit(limit).all()
+    return _format_results(results)
+
 @router.get("/{id}", response_model=PostResponseWithVotes)
 async def get_post(id: int, db: Session = Depends(get_db), user: Optional[models.User] = Depends(oauth2.get_optional_user)):
     user_id = user.id if user else -1

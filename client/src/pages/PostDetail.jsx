@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Bookmark, Share2, Edit2, Trash2, Feather, Send, Sparkles, Quote, Highlighter, Headphones, VolumeX, Pause, Play, Flame } from 'lucide-react';
-import ColorThief from 'color-thief-browser';
 import { getPost, deletePost, summarizePost, sparkDiscussion } from '../api/posts';
 import { bookmarkPost, removeBookmark, getBookmarkStatus } from '../api/bookmarks';
 import { getComments, createComment } from '../api/comments';
@@ -10,6 +9,47 @@ import { useToast } from '../context/ToastContext';
 import { logPassageHighlight } from '../api/analytics';
 import { getMiniBadge } from '../components/BadgeRow';
 import ReactionPicker from '../components/ReactionPicker';
+
+function getDominantColor(imgEl) {
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    canvas.width = 40;
+    canvas.height = 40;
+    ctx.drawImage(imgEl, 0, 0, 40, 40);
+
+    const imgData = ctx.getImageData(0, 0, 40, 40).data;
+    const colorCounts = {};
+    let maxCount = 0;
+    let dominantColor = null;
+
+    for (let i = 0; i < imgData.length; i += 4) {
+      const r = imgData[i];
+      const g = imgData[i + 1];
+      const b = imgData[i + 2];
+      const a = imgData[i + 3];
+
+      if (a < 125) continue;
+
+      const qr = Math.round(r / 10) * 10;
+      const qg = Math.round(g / 10) * 10;
+      const qb = Math.round(b / 10) * 10;
+
+      const key = `${qr},${qg},${qb}`;
+      colorCounts[key] = (colorCounts[key] || 0) + 1;
+
+      if (colorCounts[key] > maxCount) {
+        maxCount = colorCounts[key];
+        dominantColor = [qr, qg, qb];
+      }
+    }
+    return dominantColor;
+  } catch {
+    return null;
+  }
+}
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -125,11 +165,13 @@ export default function PostDetailPage() {
     const img = coverImgRef.current;
     if (!img) return;
     try {
-      const ct = new ColorThief();
-      const [r, g, b] = ct.getColor(img);
-      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      // Filter out colours that are too dark or too washed out
-      if (lum > 0.1 && lum < 0.92) setAccentColor(`${r}, ${g}, ${b}`);
+      const color = getDominantColor(img);
+      if (color) {
+        const [r, g, b] = color;
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        // Filter out colours that are too dark or too washed out
+        if (lum > 0.1 && lum < 0.92) setAccentColor(`${r}, ${g}, ${b}`);
+      }
     } catch { /* cross-origin or tiny image — silently skip */ }
   }, []);
 
@@ -593,11 +635,29 @@ export default function PostDetailPage() {
                     border: isDevil ? '1px solid rgba(209, 74, 62, 0.15)' : 'none',
                     transition: 'all 200ms ease'
                   }}>
-                    <div className="avatar avatar-sm" style={{ width: '32px', height: '32px', flexShrink: 0, background: c.user?.avatar_url ? `url(${c.user.avatar_url}) center/cover` : undefined }} />
+                    <div 
+                      className="avatar avatar-sm" 
+                      onClick={() => !isDevil && navigate(`/profile/${c.user_id}`)}
+                      style={{ 
+                        width: '32px', 
+                        height: '32px', 
+                        flexShrink: 0, 
+                        background: c.user?.avatar_url ? `url(${c.user.avatar_url}) center/cover` : undefined,
+                        cursor: isDevil ? 'default' : 'pointer'
+                      }} 
+                    />
                     
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: isDevil ? 'var(--color-destructive)' : 'inherit' }}>
+                        <span 
+                          onClick={() => !isDevil && navigate(`/profile/${c.user_id}`)}
+                          style={{ 
+                            fontSize: '13px', 
+                            fontWeight: 600, 
+                            color: isDevil ? 'var(--color-destructive)' : 'inherit',
+                            cursor: isDevil ? 'default' : 'pointer'
+                          }}
+                        >
                           {c.user?.full_name || c.user?.username || c.user?.email?.split('@')[0] || 'User'}
                         </span>
                         {!isDevil && c.user?.badges?.length > 0 && (() => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
-import { getPosts, getFollowingPosts, getRecommendedPosts } from '../api/posts';
+import { getPosts, getFollowingPosts, getRecommendedPosts, getTrendingPosts } from '../api/posts';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import PostCard from '../components/PostCard';
@@ -18,7 +18,7 @@ export default function FeedPage() {
   const [trendingOpen, setTrendingOpen] = useState(false);
 
   useEffect(() => {
-    getPosts({ limit: 5 }).then(({ data }) => setTrending(data)).catch(() => {});
+    getTrendingPosts({ limit: 5 }).then(({ data }) => setTrending(data)).catch(() => {});
   }, []);
 
   const fetchPosts = useCallback(async () => {

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     groq_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
     hf_api_key: Optional[str] = None
+    google_client_id: Optional[str] = None
 
     class Config:
         env_file = ".env"

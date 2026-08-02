@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, BookOpen, ChevronRight, BarChart2, MessageSquare, Award } from 'lucide-react';
+import { ArrowLeft, Eye, BookOpen, ChevronRight, BarChart2, MessageSquare, Award, Sparkles } from 'lucide-react';
 import { getAuthorAnalytics } from '../api/analytics';
 import { useToast } from '../context/ToastContext';
 
@@ -109,6 +109,41 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Writer Advisor Card */}
+      {data.advisor_insights && (
+        <div style={{
+          padding: '24px',
+          background: 'linear-gradient(135deg, var(--color-bg) 0%, var(--color-gold-subtle) 100%)',
+          border: '1px solid var(--color-gold)',
+          borderRadius: 'var(--radius-sm)',
+          marginBottom: '32px',
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.15, pointerEvents: 'none' }}>
+            <Sparkles size={120} style={{ color: 'var(--color-gold)' }} />
+          </div>
+          <h3 className="font-serif" style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-primary)' }}>
+            <Sparkles size={18} style={{ color: 'var(--color-gold)' }} />
+            AI Writing Advisor
+          </h3>
+          <div style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--color-text-primary)', position: 'relative', zIndex: 1 }}>
+            {data.advisor_insights.split('\n').map((line, index) => {
+              if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+                return (
+                  <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start' }}>
+                    <span style={{ color: 'var(--color-gold)', fontWeight: 'bold', fontSize: '18px', lineHeight: '14px' }}>•</span>
+                    <span>{line.replace(/^[-*]\s*/, '')}</span>
+                  </div>
+                );
+              }
+              return <p key={index} style={{ marginBottom: '8px' }}>{line}</p>;
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Views Over Time Section */}
       <div style={{ padding: '24px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', marginBottom: '32px' }}>

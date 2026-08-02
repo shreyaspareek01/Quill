@@ -38,6 +38,9 @@ class UserLogin(BaseModel):
     email:EmailStr
     password:str
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
 class PostBase(BaseModel):
     title:str
     content:str

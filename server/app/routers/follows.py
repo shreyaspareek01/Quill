@@ -32,11 +32,11 @@ def get_recommendations(
                 u.full_name,
                 u.avatar_url,
                 u.bio,
-                COUNT(f.follower_id) AS mutual_count
+                0 AS mutual_count
             FROM users u
             LEFT JOIN follows f ON f.following_id = u.id
             GROUP BY u.id, u.username, u.full_name, u.avatar_url, u.bio
-            ORDER BY mutual_count DESC
+            ORDER BY COUNT(f.follower_id) DESC
             LIMIT :lim
         """)
         rows = db.execute(sql, {"lim": limit}).mappings().all()
@@ -78,7 +78,7 @@ def get_recommendations(
                 u.full_name,
                 u.avatar_url,
                 u.bio,
-                COUNT(f.follower_id) AS mutual_count
+                0 AS mutual_count
             FROM users u
             LEFT JOIN follows f ON f.following_id = u.id
             WHERE
@@ -87,7 +87,7 @@ def get_recommendations(
                     SELECT following_id FROM follows WHERE follower_id = :uid
                 )
             GROUP BY u.id, u.username, u.full_name, u.avatar_url, u.bio
-            ORDER BY mutual_count DESC
+            ORDER BY COUNT(f.follower_id) DESC
             LIMIT :lim
         """)
         rows = db.execute(fallback_sql, {"uid": current_user.id, "lim": limit}).mappings().all()

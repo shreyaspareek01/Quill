@@ -107,6 +107,11 @@ input, textarea { font: inherit; outline: none; background: transparent; border:
   padding: var(--space-32) var(--space-24);
   border-left: 1px solid var(--color-border);
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.app-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .btn {

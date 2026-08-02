@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 
 from .. import models, oauth2
 from ..database import get_db
+from ..config import settings
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -185,6 +187,67 @@ def get_author_analytics(
         "avg_read_through": round(float(p.avg_read), 1) if p.avg_read else 0.0
     } for p in posts_perf]
     
+    # 7. AI Advisor Insights
+    advisor_insights = None
+    groq_key = settings.groq_api_key
+    if groq_key and author_post_ids and total_views > 0:
+        total_bounce_pct = round((bounce / total_views) * 100) if total_views else 0
+        total_shallow_pct = round((shallow / total_views) * 100) if total_views else 0
+        total_deep_pct = round((deep / total_views) * 100) if total_views else 0
+        total_complete_pct = round((complete / total_views) * 100) if total_views else 0
+        
+        top_h_str = "\n".join([f'- "{h.text[:80]}..." (highlighted {h.count} times in "{h.post_title}")' for h in top_highlights])
+        posts_perf_str = "\n".join([f'- "{p.title}": {p.views} views, {round(float(p.avg_read), 1) if p.avg_read else 0.0}% completion' for p in posts_perf[:5]])
+        
+        data_summary = f"""
+        Total Story Views: {total_views}
+        Average Read-through Rate: {avg_read_through}%
+        
+        Readership Funnel Retention:
+        - Bounced (<20% read): {bounce} ({total_bounce_pct}%)
+        - Shallow (20-50% read): {shallow} ({total_shallow_pct}%)
+        - Deep (50-80% read): {deep} ({total_deep_pct}%)
+        - Complete (>=80% read): {complete} ({total_complete_pct}%)
+        
+        Top Crowdsourced Highlights:
+        {top_h_str}
+        
+        Stories Performance:
+        {posts_perf_str}
+        """
+        
+        prompt = f"""You are the "Quill AI Writing Coach & Advisor". Analyze this creator's readership analytics data and provide 3 highly actionable, punchy, bulleted writing tips to improve their readership, hook rate, or engagement.
+
+Creator Data:
+{data_summary}
+
+Keep your response highly concise, professional, and specific to their data (e.g. if they have a high bounce rate, suggest how to write better hooks; if a story has high completion, highlight it; suggest expanding on their popular highlight themes). Output only the 3 bulleted recommendations (using standard - bullet points). No intro, no closing remarks, no greeting.
+"""
+        try:
+            with httpx.Client(timeout=10) as client:
+                response = client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {groq_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.5,
+                        "max_tokens": 300
+                    }
+                )
+                if response.status_code == 200:
+                    advisor_insights = response.json()["choices"][0]["message"]["content"].strip()
+                else:
+                    advisor_insights = "Error generating AI recommendations: status code " + str(response.status_code)
+        except Exception as e:
+            advisor_insights = "Failed to generate AI writing advisor insights: " + str(e)
+            
+    elif total_views == 0:
+        advisor_insights = "- Share your published stories with other readers to begin generating AI writing advisor insights!\n- Add highlights or comments to engage your audience.\n- Keep writing stories to track views and completion rates."
+
     return {
         "total_views": total_views,
         "avg_read_through": avg_read_through,
@@ -196,5 +259,6 @@ def get_author_analytics(
             "complete": complete
         },
         "top_highlights": highlights_payload,
-        "posts_performance": posts_payload
+        "posts_performance": posts_payload,
+        "advisor_insights": advisor_insights
     }

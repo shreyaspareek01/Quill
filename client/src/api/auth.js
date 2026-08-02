@@ -8,3 +8,6 @@ export const loginUser = (credentials) =>
 
 export const registerUser = (data) =>
   api.post('/users/', data);
+
+export const loginGoogle = (credential) =>
+  api.post('/login/google', { credential });

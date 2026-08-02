@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Feather, Users } from 'lucide-react';
-import { getPosts } from '../api/posts';
+import { getTrendingPosts } from '../api/posts';
 import { getRecommendations, followUser, unfollowUser, getFollowStatus } from '../api/follows';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -124,7 +124,7 @@ export default function RightSidebar() {
   const [writers, setWriters] = useState([]);
 
   useEffect(() => {
-    getPosts({ limit: 5 }).then(({ data }) => setTrendingPosts(data)).catch(() => {});
+    getTrendingPosts({ limit: 5 }).then(({ data }) => setTrendingPosts(data)).catch(() => {});
   }, []);
 
   useEffect(() => {
