@@ -136,11 +136,22 @@ class ReactionCreate(BaseModel):
     post_id: int
     reaction_type: str
 
+class ReactionUserDetail(BaseModel):
+    user_id: int
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    reaction_type: str
+    model_config = ConfigDict(from_attributes=True)
+
 class ReactionCountsResponse(BaseModel):
-    insightful: int = 0
-    agreed: int = 0
-    debatable: int = 0
+    like: int = 0
+    love: int = 0
+    celebrate: int = 0
+    funny: int = 0
+    sad: int = 0
     user_reaction: Optional[str] = None
+    details: list[ReactionUserDetail] = []
 
 
 class TranslatePostRequest(BaseModel):

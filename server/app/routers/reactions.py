@@ -15,7 +15,7 @@ def react(reaction: schemas.ReactionCreate, db: Session = Depends(database.get_d
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id:{reaction.post_id} not found!")
     
-    if reaction.reaction_type not in ['insightful', 'agreed', 'debatable']:
+    if reaction.reaction_type not in ['like', 'love', 'celebrate', 'funny', 'sad']:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reaction type!")
 
     reaction_query = db.query(models.Reaction).filter(
@@ -70,21 +70,45 @@ def get_reactions(post_id: int, db: Session = Depends(database.get_db), user: Op
     ).filter(models.Reaction.post_id == post_id).group_by(models.Reaction.reaction_type).all()
     
     res = {
-        "insightful": 0,
-        "agreed": 0,
-        "debatable": 0,
+        "like": 0,
+        "love": 0,
+        "celebrate": 0,
+        "funny": 0,
+        "sad": 0,
         "user_reaction": None
     }
     
+    legacy_map = {
+        'insightful': 'celebrate',
+        'agreed': 'like',
+        'debatable': 'sad'
+    }
+    
     for r_type, count in counts:
-        if r_type in res:
-            res[r_type] = count
+        mapped_type = legacy_map.get(r_type, r_type)
+        if mapped_type in res:
+            res[mapped_type] += count
             
     if user:
         user_reaction = db.query(models.Reaction.reaction_type).filter(
             models.Reaction.post_id == post_id,
             models.Reaction.user_id == user.id
         ).scalar()
-        res["user_reaction"] = user_reaction
+        if user_reaction:
+            res["user_reaction"] = legacy_map.get(user_reaction, user_reaction)
+
+    # Fetch reaction details (user profile info + reaction type)
+    reactions = db.query(models.Reaction).filter(models.Reaction.post_id == post_id).all()
+    details = []
+    for r in reactions:
+        mapped_type = legacy_map.get(r.reaction_type, r.reaction_type)
+        details.append({
+            "user_id": r.user_id,
+            "username": r.user.username if r.user else None,
+            "full_name": r.user.full_name if r.user else None,
+            "avatar_url": r.user.avatar_url if r.user else None,
+            "reaction_type": mapped_type
+        })
+    res["details"] = details
         
     return res
