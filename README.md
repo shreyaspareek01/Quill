@@ -43,7 +43,9 @@ Quill is a modern, premium, full-stack social blogging platform designed to writ
 - **Auth-Aware Query Headers**: Stream endpoint authenticates native EventSource streams using token fallback query parameters.
 
 ### 8. 🎭 Differentiated Reactions
-- **Expressive Likes**: Replaces traditional likes with three unique reaction types: **Insightful** (💡), **Agreed** (🤝), and **Debatable** (🤔) to categorize reader sentiment.
+- **LinkedIn-style Reactions**: Replaces traditional binary likes with 5 expressive reaction types — **Like** (👍), **Love** (❤️), **Celebrate** (🎉), **Funny** (😂), and **Sad** (😢).
+- **Hover Tray**: Hovering the like button reveals a floating reaction tray; clicking defaults to 👍 Like.
+- **Reaction Summary**: A clickable count bubble opens a modal listing every reactor with their reaction type, filterable by category.
 
 ### 9. 🔐 Secure Google OAuth2 Login
 - **Identity Provider Verification**: Seamlessly registers and authenticates accounts using Google ID tokens verified against Google's TokenInfo API.
@@ -83,7 +85,7 @@ server/  – FastAPI backend + PostgreSQL Alembic Migrations
 - `users`: User profiles, JWT auth passwords, avatars, and bio details.
 - `posts`: Story titles, markdown contents, and Gemini embedding vectors.
 - `votes`: Binary likes.
-- `reactions`: Custom reaction types (`insightful`, `agreed`, `debatable`).
+- `reactions`: Custom reaction types (`like`, `love`, `celebrate`, `funny`, `sad`).
 - `comments`: Standard text replies.
 - `follows`: User-to-user social follow graph.
 - `bookmarks`: Saved posts.
@@ -119,7 +121,7 @@ server/  – FastAPI backend + PostgreSQL Alembic Migrations
 | POST | `/posts/polish-title` | AI title editor |
 | **Comments & Reactions** | | |
 | POST/GET/DELETE | `/comments/` | CRUD post comments |
-| GET/POST/DELETE | `/reactions/{post_id}` | Manage insightful/agreed/debatable reactions |
+| GET/POST/DELETE | `/reactions/{post_id}` | Manage like/love/celebrate/funny/sad reactions; returns counts and full reactor details |
 | **Follows & Bookmarks** | | |
 | POST/DELETE | `/follows/{user_id}` | Follow / unfollow a creator |
 | GET | `/follows/{id}/status` | Check followers and following status |
